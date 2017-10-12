@@ -1,0 +1,15 @@
+click==6.7
+cloudpickle==0.4.0
+configobj==5.0.6
+doit==0.30.3
+Flask==0.12.2
+itsdangerous==0.24
+Jinja2==2.9.6
+MarkupSafe==1.0
+numpy==1.13.1
+pandas==0.20.3
+pyinotify==0.9.6
+python-dateutil==2.6.1
+pytz==2017.2
+six==1.10.0
+Werkzeug==0.12.2

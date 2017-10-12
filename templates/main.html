@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MyPage</title>
+</head>
+<link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/c3/0.4.17/c3.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.10.16/css/jquery.dataTables.min.css">
+<body>
+
+<div class="w3-row">
+    <div class="w3-col m6">
+        <div id="timeline"></div>
+    </div>
+    <div class="w3-col m3">
+        <div id="defocus"></div>
+    </div>
+    <div class="w3-col m3">
+        <div id="resolution"></div>
+    </div>
+</div>
+
+<div class="w3-row">
+
+    <div class="w3-col m6 w3-row-padding">
+      <div class="w3-half">
+          <img id="dw-image" src="/static/minions-01.png" alt="Downweighted image" style="width:100%">
+      </div>
+      <div class="w3-half">
+          <img id="ps-image" src="/static/minions-02.png" alt="Power Spectrum" style="width:100%">
+      </div>
+    </div>
+
+    <div class="w3-col m6">
+        <table id="example" class="display compact" width="100%" cellspacing="0">
+            <thead>
+                <tr>
+                    <th>Micrograph</th>
+                    <th>Defocus_V</th>
+                    <th>Defocus_U</th>
+                    <th>Angle</th>
+                    <th>Phase shift</th>
+                    <th>Resolution</th>
+                </tr>
+            </thead>
+        </table>
+    </div>
+</div>
+
+
+</body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="//cdn.datatables.net/1.10.16/js/jquery.dataTables.min.js"></script>
+
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/c3/0.4.17/c3.min.js"></script>
+<script type="text/javascript" src="/static/js/init.js"></script>
+<script type="text/javascript">
+    MYLIBRARY.init('{{project_name}}');
+</script>
+<script src="/static/js/script.js"></script>
+
+
+</html>

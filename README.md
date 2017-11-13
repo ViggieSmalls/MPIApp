@@ -13,3 +13,7 @@ virtualenv venv
 source venv/bin/activate
 pip install -r requirements.txt
 ```
+You might need to install the python3-tk package to use the gui interface:
+```
+sudo apt-get install python3-tk
+```

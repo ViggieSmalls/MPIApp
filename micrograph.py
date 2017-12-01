@@ -43,8 +43,8 @@ class File:
 class Micrograph:
     def __init__(self, name):
         self.micrograph = File(name)
-        self.dir = os.path.dirname(self.micrograph)
-        self.name = os.path.basename(self.micrograph)
+        self.dir = os.path.dirname(str(self.micrograph))
+        self.name = os.path.basename(str(self.micrograph))
         self.basename, self.extension = os.path.splitext(self.name)
         self._motioncor_options = None
         self._gctf_options = None

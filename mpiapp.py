@@ -15,9 +15,9 @@ def main(config_file: str):
     conf = ConfigParser(config_file)
     queue = Queue()
     watch_manager = pyinotify.WatchManager()
-    #process_table = ProcessTable(conf.output_directory)
     threads_stop = Event()
 
+    process_table = ProcessTable(conf.output_directory, threads_stop)
     #FIXME: change config file parameter names to match variables
     handler = EventHandler(queue=queue, pattern=conf.file_extesion)
     notifier = pyinotify.ThreadedNotifier(watch_manager, handler)
@@ -31,7 +31,8 @@ def main(config_file: str):
         'queue': queue,
         'stop_event': threads_stop,
         'motioncor_options': conf.motioncor_options,
-        'gctf_options': conf.gctf_options
+        'gctf_options': conf.gctf_options,
+        'process_table': process_table
     }
 
     gpu_threads = [Thread(target=worker, args=(i,), kwargs=worker_kwargs) for i in conf.GPUs]
@@ -39,7 +40,14 @@ def main(config_file: str):
         thread.daemon = True
         thread.start()
 
-    #run_server(conf.port_number, conf.static_directory)
+    while True:
+        user_input = input("Type 'quit' to stop processing:")
+        if user_input == "quit":
+            new_input = input("Do you want to quit? Any new incoming files will not be processed. (y/[n])")
+            if new_input == "y":
+                threads_stop.set()
+                # TODO wait until everything stopped processing
+                break
 
 
 class EventHandler(pyinotify.ProcessEvent):
@@ -53,15 +61,16 @@ class EventHandler(pyinotify.ProcessEvent):
             mic = Micrograph(event.pathname)
             self.queue.put(mic)
 
-def worker(gpu_id, results_directory, queue, stop_event, motioncor_options, gctf_options):
+def worker(gpu_id, results_directory, queue, stop_event, motioncor_options, gctf_options, process_table):
     while (not stop_event.is_set()):
         # get a Micrograph object form the queue
         mic = queue.get()
-        mic.motioncor_options = motioncor_options
-        mic.gctf_options = gctf_options
+        mic.motioncor_options = motioncor_options.copy()
+        mic.gctf_options = gctf_options.copy()
         mic.process(gpu_id)
-        # TODO fix file locations
-        shutil.move(mic.process_dir, results_directory)
+        mic.move_to_output_directory(results_directory)
+        results = {**mic.motioncor_results, **mic.gctf_results, 'created_at': mic.created_at}
+        process_table.addMic(mic.basename, results)
 
 
 def run_server(port: int, static_folder: str):

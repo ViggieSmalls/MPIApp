@@ -43,7 +43,8 @@ class TestWorkerFunction:
             'queue': self.queue,
             'stop_event': self.stop_event,
             'motioncor_options': None,
-            'gctf_options': None
+            'gctf_options': None,
+            'process_table': None
         }
         self.thread = Thread(target=worker, args=(0, ), kwargs=worker_kwargs)
         self.thread.start()
@@ -62,5 +63,5 @@ class TestFileObject:
         file = File(os.path.join(old_path, file_name))
         new_folder_path = os.path.join(old_path, 'new_directory')
         os.mkdir(new_folder_path)
-        file.move(new_folder_path)
+        file.move_to_directory(new_folder_path)
         assert file.abspath == os.path.join(new_folder_path, file_name)

@@ -3,6 +3,7 @@ import shutil
 import subprocess
 import numpy as np
 import pandas as pd
+from datetime import datetime
 
 class File:
     def __init__(self, full_path):
@@ -31,8 +32,7 @@ class File:
         self.path = dir
         self.name = name
 
-    # FIXME rename to move_to_dir
-    def move(self, directory):
+    def move_to_directory(self, directory):
         assert os.path.isdir(directory)
         shutil.move(self.abspath, os.path.join(directory, self.name))
         self.path = directory
@@ -43,11 +43,12 @@ class File:
 class Micrograph:
     def __init__(self, name):
         self.micrograph = File(name)
-        self.dir = os.path.dirname(name)
-        self.name = os.path.basename(name)
+        self.dir = os.path.dirname(self.micrograph)
+        self.name = os.path.basename(self.micrograph)
         self.basename, self.extension = os.path.splitext(self.name)
         self._motioncor_options = None
         self._gctf_options = None
+        self.created_at = datetime.now()
         self.ntrials = 3
         self.timeout = 300 # seconds
         #FIXME: Write to log
@@ -84,7 +85,7 @@ class Micrograph:
     def process(self, gpu_id):
         self.process_dir = os.path.join(self.dir, self.basename)
         os.mkdir(self.process_dir)
-        self.micrograph.move(self.process_dir)
+        self.micrograph.move_to_directory(self.process_dir)
         os.chdir(self.process_dir)
 
         if not self._motioncor_options:
@@ -123,8 +124,8 @@ class Micrograph:
                 else:
                     print('Motioncor for micrograph {} was executed successfully. (trial {})\n'.format(self.name,i+1))
                     self.motioncor_output_files = {
-                        'aligned_DW': File(os.path.splitext(self.micrograph)[0] + '_DW.mrc'),
-                        'aligned_no_DW': File(os.path.splitext(self.micrograph)[0] + '.mrc'),
+                        'motioncor_aligned_DW': File(os.path.splitext(self.micrograph)[0] + '_DW.mrc'),
+                        'motioncor_aligned_no_DW': File(os.path.splitext(self.micrograph)[0] + '.mrc'),
                         'motioncor_log': File(os.path.splitext(self.micrograph)[0] + '_DriftCorr.log')
                     }
                     with open(self.motioncor_output_files['motioncor_log'].abspath, "w") as log:
@@ -138,7 +139,7 @@ class Micrograph:
                 print('Timeout of {} s expired for motioncor on micrograph {}. (trial {})\n'.format(self.timeout,self.name,i+1))
                 continue
 
-        self.motioncor_results = None
+        self.motioncor_results = {}
         return
 
     def run_gctf(self, gpu_id):
@@ -174,9 +175,9 @@ class Micrograph:
                     print('Gctf for micrograph {} was executed successfully. (trial {})\n'.format(self.name,i+1))
 
                     self.gctf_output_files = {
-                        'power_spectrum': File(os.path.splitext(self.gctf_input)[0] + '.ctf'),
+                        'gctf_power_spectrum': File(os.path.splitext(self.gctf_input)[0] + '.ctf'),
                         'gctf_log': File(os.path.splitext(self.gctf_input)[0] + '_gctf.log'),
-                        'epa_log': File(os.path.splitext(self.gctf_input)[0] + '_EPA.log')
+                        'gctf_epa_log': File(os.path.splitext(self.gctf_input)[0] + '_EPA.log')
                     }
                     log = out.decode('utf-8')
                     with open(self.gctf_output_files['gctf_log'].abspath, "w") as logfile:
@@ -208,6 +209,20 @@ class Micrograph:
                 print('Timeout of {} s expired for motioncor on micrograph {}. (trial {})\n'.format(self.timeout,self.name,i+1))
                 continue
 
-        self.gctf_results = None
+        self.gctf_results = {}
         return
 
+    def move_to_output_directory(self, directory):
+        # FIXME print to log
+        assert os.path.isdir(directory), print('Target directory does not exist!')
+        raw_frames_dir = os.path.join(directory, 'frames')
+        motioncor_dir = os.path.join(directory, 'motioncor')
+        gctf_dir = os.path.join(directory, 'gctf')
+        for dir in [raw_frames_dir, motioncor_dir, gctf_dir]:
+            if not os.path.isdir(dir):
+                os.mkdir(dir)
+        self.micrograph.move_to_directory(raw_frames_dir)
+        for file in self.motioncor_output_files.values():
+            file.move_to_directory(motioncor_dir)
+        for file in self.gctf_output_files.values():
+            file.move_to_directory(gctf_dir)

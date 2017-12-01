@@ -37,6 +37,9 @@ class File:
         shutil.move(self.abspath, os.path.join(directory, self.name))
         self.path = directory
 
+    def __str__(self):
+        return self.abspath
+
 class Micrograph:
     def __init__(self, name):
         self.micrograph = File(name)
@@ -120,10 +123,9 @@ class Micrograph:
                 else:
                     print('Motioncor for micrograph {} was executed successfully. (trial {})\n'.format(self.name,i+1))
                     self.motioncor_output_files = {
-                        # FIXME set file name based on options
-                        'aligned_DW': File(os.path.join(self.dir, self.basename + '_DW.mrc')),
-                        'aligned_no_DW': File(os.path.join(self.dir, self.basename + '.mrc')),
-                        'motioncor_log': File(os.path.join(self.dir, self.basename + '_DriftCorr.log'))
+                        'aligned_DW': File(os.path.splitext(self.micrograph)[0] + '_DW.mrc'),
+                        'aligned_no_DW': File(os.path.splitext(self.micrograph)[0] + '.mrc'),
+                        'motioncor_log': File(os.path.splitext(self.micrograph)[0] + '_DriftCorr.log')
                     }
                     with open(self.motioncor_output_files['motioncor_log'].abspath, "w") as log:
                         log.write(out.decode('utf-8'))

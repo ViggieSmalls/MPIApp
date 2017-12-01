@@ -24,6 +24,8 @@ def main(config_file: str):
     notifier.daemon = True
     notifier.start()
 
+    watch_manager.add_watch(conf.input_directory, pyinotify.ALL_EVENTS)
+
     worker_kwargs = {
         'results_directory': conf.output_directory,
         'queue': queue,

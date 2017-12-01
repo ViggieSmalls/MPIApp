@@ -9,7 +9,7 @@ Additional libraries like doit can be used to simplify the scripting of complex 
 ## Setup
 Create a virtual environment for python and install requirements
 ```
-virtualenv venv
+virtualenv -p python3 venv
 source venv/bin/activate
 pip install -r requirements.txt
 ```

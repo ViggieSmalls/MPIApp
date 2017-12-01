@@ -68,7 +68,7 @@ class Micrograph:
 
     @property
     def gctf_options(self):
-        return self._motioncor_options
+        return self._gctf_options
 
     @gctf_options.setter
     def gctf_options(self, options):

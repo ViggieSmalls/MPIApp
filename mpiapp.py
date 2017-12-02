@@ -1,21 +1,18 @@
 import argparse
 import os
-import gpustat
 from flask import Flask, render_template
 import pyinotify
 from queue import Queue
 from threading import Thread, Event
-import shutil
+
 
 from config_parser import ConfigParser
 from process_table import ProcessTable
 from micrograph import Micrograph
 
-def main(config_file: str):
-    conf = ConfigParser(config_file)
+def main(conf, threads_stop):
     queue = Queue()
     watch_manager = pyinotify.WatchManager()
-    threads_stop = Event()
 
     process_table = ProcessTable(conf.output_directory, threads_stop)
     #FIXME: change config file parameter names to match variables
@@ -39,15 +36,7 @@ def main(config_file: str):
     for thread in gpu_threads:
         thread.daemon = True
         thread.start()
-
-    while True:
-        user_input = input("Type 'quit' to stop processing:")
-        if user_input == "quit":
-            new_input = input("Do you want to quit? Any new incoming files will not be processed. (y/[n])")
-            if new_input == "y":
-                threads_stop.set()
-                # TODO wait until everything stopped processing
-                break
+    #TODO watch_manager stop event
 
 
 class EventHandler(pyinotify.ProcessEvent):
@@ -57,7 +46,7 @@ class EventHandler(pyinotify.ProcessEvent):
     def process_IN_CLOSE_WRITE(self, event):
         if os.path.splitext(event.pathname)[1] == self.pattern:
             # FIXME write to log
-            print('Found new micrograph {}. Inserting in queue'.format(event.name))
+            print('New micrograph: {}. Inserting in queue.'.format(event.name))
             mic = Micrograph(event.pathname)
             self.queue.put(mic)
 
@@ -82,9 +71,59 @@ def run_server(port: int, static_folder: str):
 
     server.run(host='0.0.0.0', port=port, static_folder=static_folder)
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="A task processing automation tool")
     parser.add_argument("config_file", help="Configuration file")
+    parser.add_argument("--test", help="Run test on the 20S Proteasome data set.", action="store_true")
     args = parser.parse_args()
+    configurations = ConfigParser(args.config_file)
+    stop_event = Event()
 
-    main(config_file=args.config_file)
+    if not args.test:
+        main(conf=configurations, threads_stop=stop_event)
+
+    elif args.test:
+        import shutil
+        from time import sleep
+        import glob
+
+        def copyfile_slow(files, dest):
+            sleep(2) # wait for main to set up everything
+            while bool(files):
+                file = files.pop()
+                shutil.copy(file, dest)
+                sleep(30)
+
+        myPath = os.path.dirname(os.path.abspath(__file__))
+        loc_test_data = os.path.join(os.path.abspath('.'), "tests/data")
+        assert os.path.isdir(loc_test_data), "Test data is expected to be loacted at {}".format(loc_test_data)
+        configurations.input_directory = '/tmp/test_mpiapp_input'
+        configurations.output_directory = '/tmp/test_mpiapp_output'
+        os.mkdir(configurations.input_directory)
+        os.mkdir(configurations.output_directory)
+        data = sorted(glob.glob1(loc_test_data, '*.tif'))
+        data = [os.path.join(loc_test_data, item) for item in data]
+        main_thread = Thread(target=main, kwargs={'conf':configurations, 'threads_stop':stop_event})
+        main_thread.start()
+        copyfile_slow(data, configurations.input_directory)
+
+    while True:
+        if args.test:
+            print("Test run finished.")
+            user_input = input("Do you want to delete input and output directories? (y/[n]):")
+            stop_event.set()
+            if user_input == 'y':
+                shutil.rmtree(configurations.input_directory)
+                shutil.rmtree(configurations.output_directory)
+                break
+            elif user_input == 'n':
+                break
+
+        elif not args.test:
+            user_input = input("Type 'quit' to stop processing:")
+            if user_input == "quit":
+                new_input = input("Do you want to quit? Any new incoming files will not be processed. (y/[n]):")
+                if new_input == "y":
+                    stop_event.set()
+                    break

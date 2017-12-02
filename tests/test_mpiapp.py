@@ -65,3 +65,17 @@ class TestFileObject:
         os.mkdir(new_folder_path)
         file.move_to_directory(new_folder_path)
         assert file.abspath == os.path.join(new_folder_path, file_name)
+
+class TestMicrographClass:
+    def setup_method(self):
+        pass
+
+    def test_process_motioncor_and_gctf(self):
+        pass
+
+    def test_process_motioncor_only(self):
+        pass
+
+    def test_process_gctf_only(self):
+        pass
+

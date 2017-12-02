@@ -8,7 +8,7 @@ from datetime import datetime
 class File:
     def __init__(self, full_path):
         self._path = os.path.dirname(full_path)
-        self.name = os.path.basename((full_path))
+        self.name = os.path.basename(full_path)
         self._abspath = full_path
 
     # FIXME rename to dir
@@ -40,19 +40,22 @@ class File:
     def __str__(self):
         return self.abspath
 
+    def __repr__(self):
+        return self.abspath
+
 class Micrograph:
     def __init__(self, name):
         self.micrograph = File(name)
-        self.dir = os.path.dirname(str(self.micrograph))
-        self.name = os.path.basename(str(self.micrograph))
+        self.dir = os.path.dirname(self.micrograph.abspath)
+        self.name = os.path.basename(self.micrograph.abspath)
         self.basename, self.extension = os.path.splitext(self.name)
         self._motioncor_options = None
         self._gctf_options = None
         self.created_at = datetime.now()
         self.ntrials = 3
         self.timeout = 300 # seconds
-        #FIXME: Write to log
-        print('Created Micrograph class for {}'.format(self.name))
+        #FIXME: Write to log, with time
+        print('Micrograph object created for {}.'.format(self.name))
 
     @property
     def motioncor_options(self):
@@ -76,8 +79,6 @@ class Micrograph:
         try:
             self._gctf_options = options
             self.gctf_executable = self._gctf_options.pop('path_to_executable')
-            self.gctf_results = None
-            self.gctf_output_files = []
         except:
             # FIXME write to log
             print("Gctf options not valid.")
@@ -88,16 +89,19 @@ class Micrograph:
         self.micrograph.move_to_directory(self.process_dir)
         os.chdir(self.process_dir)
 
-        if not self._motioncor_options:
+        if not self.motioncor_options:
             #FIXME: write to log
             print('No motioncor parameters provided. Skipping motioncor for micrograph {}'.format(self.name))
         else:
             self.run_motioncor(gpu_id)
-        if not self._gctf_options:
+        print({self.micrograph.name:self.motioncor_results})
+        if not self.gctf_options:
             #FIXME: write to log
             print('No gctf parameters provided. Skipping gctf for micrograph {}'.format(self.name))
         else:
             self.run_gctf(gpu_id)
+        print({self.micrograph.name:self.gctf_results})
+        os.chdir('..')
 
     def run_motioncor(self, gpu_id):
         cmd = [ self.motioncor_executable ]
@@ -120,35 +124,43 @@ class Micrograph:
 
                 if err:
                     print('Motioncor for micrograph {} did not finish successfully. (trial {})\n'.format(self.name,i+1))
+                    continue
 
                 else:
                     print('Motioncor for micrograph {} was executed successfully. (trial {})\n'.format(self.name,i+1))
                     self.motioncor_output_files = {
-                        'motioncor_aligned_DW': File(os.path.splitext(self.micrograph)[0] + '_DW.mrc'),
-                        'motioncor_aligned_no_DW': File(os.path.splitext(self.micrograph)[0] + '.mrc'),
-                        'motioncor_log': File(os.path.splitext(self.micrograph)[0] + '_DriftCorr.log')
+                        'motioncor_aligned_DW': File(os.path.splitext(self.micrograph.abspath)[0] + '_DW.mrc'),
+                        'motioncor_aligned_no_DW': File(os.path.splitext(self.micrograph.abspath)[0] + '.mrc'),
+                        'motioncor_log': File(os.path.splitext(self.micrograph.abspath)[0] + '_DriftCorr.log')
                     }
                     with open(self.motioncor_output_files['motioncor_log'].abspath, "w") as log:
                         log.write(out.decode('utf-8'))
                     # output a dictionary with the names of the output files
                     # TODO add location of files
                     self.motioncor_results = {k:v.name for k,v in self.motioncor_output_files.items()}
+
                     return
 
             except subprocess.TimeoutExpired:
                 print('Timeout of {} s expired for motioncor on micrograph {}. (trial {})\n'.format(self.timeout,self.name,i+1))
                 continue
 
+        print("No motioncor results could be generated for micrograph {}".format(self.micrograph.name))
         self.motioncor_results = {}
+        self.motioncor_output_files = {}
         return
 
     def run_gctf(self, gpu_id):
-        try:
-            self.gctf_input = self.motioncor_output_files['aligned_no_DW']
-        except:
-            # FIXME write to log
-            print('No input for gctf available. Skipping gctf for micrograph {}'.format(self.name))
-            return
+        if not self.motioncor_options:
+            self.gctf_input = self.micrograph
+        else:
+            try:
+                self.gctf_input = self.motioncor_output_files['motioncor_aligned_no_DW']
+                print("Using {} as input for gctf".format(self.gctf_input.name))
+            except:
+                # FIXME write to log
+                print('No input for gctf available. Skipping gctf for micrograph {}'.format(self.name))
+                return
 
         cmd = [ self.gctf_executable ]
         for k, v in self.gctf_options.items():
@@ -158,7 +170,7 @@ class Micrograph:
             finally:
                 k = '--' + k
                 cmd.extend([k,str(v)])
-        cmd.append(self.gctf_input)
+        cmd.append(self.gctf_input.abspath)
         # FIXME: Log cmd to log file
         print(' '.join(map(str, cmd)))
 
@@ -169,15 +181,16 @@ class Micrograph:
                 out, err = process.communicate()
 
                 if err:
-                    print('Gctf for micrograph {} did not finish successfully. (trial {})\n'.format(self.name,i+1))
+                    print('Gctf for micrograph {} did not finish successfully. (trial {})\n'.format(self.gctf_input.name,i+1))
 
                 else:
-                    print('Gctf for micrograph {} was executed successfully. (trial {})\n'.format(self.name,i+1))
+                    print('Gctf for micrograph {} was executed successfully. (trial {})\n'.format(self.gctf_input.name,i+1))
 
                     self.gctf_output_files = {
-                        'gctf_power_spectrum': File(os.path.splitext(self.gctf_input)[0] + '.ctf'),
-                        'gctf_log': File(os.path.splitext(self.gctf_input)[0] + '_gctf.log'),
-                        'gctf_epa_log': File(os.path.splitext(self.gctf_input)[0] + '_EPA.log')
+                        'gctf_ctf_fit': File(os.path.splitext(self.gctf_input.abspath)[0] + '.ctf'),
+                        #'gctf_power_spectrum': File(os.path.splitext(self.gctf_input.abspath)[0] + '.pow'),
+                        'gctf_log': File(os.path.splitext(self.gctf_input.abspath)[0] + '_gctf.log'),
+                        'gctf_epa_log': File(os.path.splitext(self.gctf_input.abspath)[0] + '_EPA.log')
                     }
                     log = out.decode('utf-8')
                     with open(self.gctf_output_files['gctf_log'].abspath, "w") as logfile:
@@ -191,7 +204,7 @@ class Micrograph:
                             break
 
                     # FIXME: first row misses!
-                    epa_df = pd.read_csv(self.gctf_output_files['epa_log'].abspath, sep='\s+',
+                    epa_df = pd.read_csv(self.gctf_output_files['gctf_epa_log'].abspath, sep='\s+',
                                          names=['Resolution', '|CTFsim|', 'EPA( Ln|F| )', 'EPA(Ln|F| - Bg)',
                                                 'CCC'],
                                          header=1)
@@ -202,7 +215,7 @@ class Micrograph:
                     del self.gctf_results['CCC']
 
                     # TODO add location of files
-                    self.gctf_results.update( {k:v.name for k,v in self.motioncor_output_files.items()} )
+                    self.gctf_results.update( {k:v.name for k,v in self.gctf_output_files.items()} )
                     return
 
             except subprocess.TimeoutExpired:
@@ -210,6 +223,7 @@ class Micrograph:
                 continue
 
         self.gctf_results = {}
+        self.gctf_output_files = {}
         return
 
     def move_to_output_directory(self, directory):

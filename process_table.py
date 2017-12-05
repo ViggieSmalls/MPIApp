@@ -25,6 +25,10 @@ class ProcessTable:
         if not df.empty:
             df = df.sort_values(by='created_at')
             print("Writing results to process table.")
+            df['Defocus'] = df[["Defocus_U", "Defocus_V"]].mean(axis=1)
+            df[['Defocus', 'Defocus_U', 'Defocus_V']] = df[['Defocus', 'Defocus_U', 'Defocus_V']] / 1000
+            df[['Phase_shift']] = df[['Phase_shift']] / 180
+            df['delta_Defocus'] = df["Defocus_U"] - df["Defocus_V"]
             df.to_csv(self.file, index_label='micrograph')
 
         if self.stop_event.is_set():

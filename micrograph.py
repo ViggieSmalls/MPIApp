@@ -94,13 +94,13 @@ class Micrograph:
             print('No motioncor parameters provided. Skipping motioncor for micrograph {}'.format(self.name))
         else:
             self.run_motioncor(gpu_id)
-        print({self.micrograph.name:self.motioncor_results})
+            print({self.micrograph.name:self.motioncor_results})
         if not self.gctf_options:
             #FIXME: write to log
             print('No gctf parameters provided. Skipping gctf for micrograph {}'.format(self.name))
         else:
             self.run_gctf(gpu_id)
-        print({self.micrograph.name:self.gctf_results})
+            print({self.micrograph.name:self.gctf_results})
         os.chdir('..')
 
     def run_motioncor(self, gpu_id):

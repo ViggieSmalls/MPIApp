@@ -93,7 +93,7 @@ if __name__ == "__main__":
             while bool(files):
                 file = files.pop()
                 shutil.copy(file, dest)
-                sleep(30)
+                sleep(60)
 
         myPath = os.path.dirname(os.path.abspath(__file__))
         loc_test_data = os.path.join(os.path.abspath('.'), "tests/data")

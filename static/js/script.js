@@ -146,7 +146,7 @@ $(document).ready(function() {
         else {
             table.$('tr.selected').removeClass('selected');
             $(this).addClass('selected');
-        };
+        }
 
     } );
 } );

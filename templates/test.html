@@ -10,6 +10,20 @@
 <body>
 
 <div id="chart"></div>
+
+<div class="w3-row">
+
+    <div class="w3-col m6 w3-row-padding">
+      <div class="w3-half">
+          <img id="dw-image" src="" alt="Downweighted image" style="width:100%">
+      </div>
+      <div class="w3-half">
+          <img id="ps-image" src="" alt="Power Spectrum" style="width:100%">
+      </div>
+    </div>
+
+</div>
+
 <table id="example" class="display" width="100%"></table>
 
 </body>
@@ -18,12 +32,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/c3/0.4.17/c3.min.js"></script>
 <script>
-    d3.csv('test.csv', function (data) {
-        var sel = [];
-        for (i=0; i<data.length ;i++) {
-            sel.push(data[i].data1)
-        }
-        console.log(data);
+    d3.csv('test_folder_names.csv', function (data) {
         var chart = c3.generate({
             data: {
                 json: data,
@@ -76,19 +85,89 @@
                 show: true
             }
         });
+
+        var data_defocus = [];
+        var data_resolution = [];
+        for (i=0; i<data.length ;i++) {
+            data_defocus.push(parseFloat(data[i].Defocus));
+            data_resolution.push(parseFloat(data[i].Resolution))
+        }
+        //console.log(micrographs);
         $(document).ready(function() {
-            var rows = ['micrograph','Defocus_U','Defocus_V','Angle','Phase_shift','Resolution'];
-            $('#example').DataTable( {
+            var table = $('#example').DataTable( {
                 data: data,
+                "createdRow": function( row, data, dataIndex ) {
+                    if ( parseFloat(data["Defocus"]) >= 0.45 ) {
+                        $(row).addClass( 'w3-yellow' );
+                    }
+                },
                 columns: [
-                    { data: rows[0] },
-                    { data: rows[1] }
+                    { data: "micrograph" },
+                    { data: "Defocus" },
+                    { data: "delta_Defocus" },
+                    { data: "Phase_shift" },
+                    { data: "Resolution" }
                 ],
                 columnDefs: [
-                    { "title": rows[0], "targets": 0 },
-                    { "title": rows[1], "targets": 1 }
-                ]
+                    {
+                        "targets": 0,
+                        "title": "micrograph"
+                    },
+                    {
+                        "targets": 1,
+                        "render": function ( data) {
+                                      return parseFloat(data).toFixed(2);
+                                },
+                        "title": "Defocus"
+                    },
+                    {
+                        "targets": 2,
+                        "render": function ( data) {
+                                      return parseFloat(data).toFixed(3);
+                                },
+                        "title": "delta_Defocus"
+                    },
+                    {
+                        "targets": 3,
+                        "render": function ( data) {
+                                      return parseFloat(data).toFixed(1);
+                                },
+                        "title": "Phase_shift"
+                    },
+                    {
+                        "targets": 4,
+                        "render": function ( data) {
+                                      return parseFloat(data).toFixed(1);
+                                },
+                        "title": "Resolution"
+                    }
+                ],
+                "rowCallback": function( row, data ) {
+                    $(row).attr('id', data["micrograph"]);
+                }
             } );
+            var last_image = table.row(':last', { order: 'applied' }).data();
+            var motioncor_image = last_image["motioncor_aligned_DW"];
+            var motioncor_png = motioncor_image.replace(".mrc",".png");
+            var gctf_image = last_image['gctf_ctf_fit'];
+            var gctf_png = gctf_image.replace(".ctf",".png");
+            $("#dw-image").attr("src",'static/' + motioncor_png);
+            $("#ps-image").attr("src",'static/' + gctf_png);
+
+            $('#example tbody').on( 'click', 'tr', function () {
+                var mic_id = $(this).attr("id");
+                $("#dw-image").attr("src",`static/motioncor/${mic_id}_DW.png`);
+                $("#ps-image").attr("src",`static/gctf/${mic_id}.png`);
+
+                if ( $(this).hasClass('selected') ) {
+                    $(this).removeClass('selected');
+                }
+                else {
+                    table.$('tr.selected').removeClass('selected');
+                    $(this).addClass('selected');
+                }
+
+            });
         } );
     });
 </script>

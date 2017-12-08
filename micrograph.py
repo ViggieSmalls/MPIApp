@@ -137,7 +137,7 @@ class Micrograph:
                         log.write(out.decode('utf-8'))
                     # output a dictionary with the names of the output files
                     # TODO add location of files
-                    self.motioncor_results = {k:v.name for k,v in self.motioncor_output_files.items()}
+                    self.motioncor_results = {k:os.path.join('motioncor',v.name) for k,v in self.motioncor_output_files.items()}
 
                     return
 
@@ -193,8 +193,8 @@ class Micrograph:
                         'gctf_epa_log': File(os.path.splitext(self.gctf_input.abspath)[0] + '_EPA.log')
                     }
                     log = out.decode('utf-8')
-                    with open(self.gctf_output_files['gctf_log'].abspath, "w") as logfile:
-                        logfile.write(log)
+                    with open(self.gctf_output_files['gctf_log'].abspath, "w") as gctf_log:
+                        gctf_log.write(log)
 
                     for line in reversed(log.split('\n')):
                         if line.endswith('Final Values'):
@@ -215,7 +215,7 @@ class Micrograph:
                     del self.gctf_results['CCC']
 
                     # TODO add location of files
-                    self.gctf_results.update( {k:v.name for k,v in self.gctf_output_files.items()} )
+                    self.gctf_results.update( {k:os.path.join('gctf',v.name) for k,v in self.gctf_output_files.items()} )
                     return
 
             except subprocess.TimeoutExpired:

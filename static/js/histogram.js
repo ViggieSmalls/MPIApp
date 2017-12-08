@@ -11,9 +11,10 @@ function variance (x) {
   }
   return s / (n - 1);
 }
+
 //A test for outliers http://en.wikipedia.org/wiki/Chauvenet%27s_criterion
-function chauvenet (x) {
-    var dMax = 2;
+function chauvenet (x, dMax) {
+    //var dMax = 3;
     var mean = d3.mean(x);
     var stdv = Math.sqrt(variance(x));
     var counter = 0;
@@ -28,21 +29,17 @@ function chauvenet (x) {
     return temp
 }
 
-function histogram (data_input, color, id) {
+function histogram (data_input, color, id, label, dMax) {
 
-        var trimmed = chauvenet(data_input);
-
-        // var color = "Olive";
-
-        // Generate a 1000 data points using normal distribution with mean=20, deviation=5
-        //var values = d3.range(1000).map(d3.random.normal(20, 5));
+        var trimmed = chauvenet(data_input, dMax);
 
         // A formatter for counts.
         var formatCount = d3.format(",.0f");
 
-        var margin = {top: 20, right: 30, bottom: 30, left: 30},
-            width = 960 - margin.left - margin.right,
-            height = 500 - margin.top - margin.bottom;
+        var svg = d3.select(id),
+            margin = {top: 20, right: 30, bottom: 30, left: 30},
+            width = +svg.attr("width") - margin.left - margin.right,
+            height = +svg.attr("height") - margin.top - margin.bottom;
 
         var max = d3.max(trimmed);
         var min = d3.min(trimmed);
@@ -53,7 +50,7 @@ function histogram (data_input, color, id) {
 
         // Generate a histogram using twenty uniformly-spaced bins.
         var data = d3.layout.histogram()
-            .bins(x.ticks(10))
+            .bins(x.ticks(20))
             (trimmed);
 
         var yMax = d3.max(data, function(d){return d.length});
@@ -64,16 +61,16 @@ function histogram (data_input, color, id) {
 
         var y = d3.scale.linear()
             .domain([0, yMax])
-            .range([height, 0]);
+            .range([height, 20]);
 
         var xAxis = d3.svg.axis()
             .scale(x)
             .orient("bottom");
+            //.tickFormat(function (d) {return d3.format(",.2f")(d) + " \u03BCm"});
 
-        var svg = d3.select(id)
-            .attr("width", width + margin.left + margin.right)
+        svg.attr("width", width + margin.left + margin.right)
             .attr("height", height + margin.top + margin.bottom)
-          .append("g")
+            .append("g")
             .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
         var bar = svg.selectAll(".bar")
@@ -90,7 +87,7 @@ function histogram (data_input, color, id) {
 
         bar.append("text")
             .attr("dy", ".75em")
-            .attr("y", -12)
+            .attr("y",-12)
             .attr("x", (x(data[0].dx) - x(0)) / 2)
             .attr("text-anchor", "middle")
             .text(function(d) { return formatCount(d.y); });
@@ -99,6 +96,11 @@ function histogram (data_input, color, id) {
             .attr("class", "x axis")
             .attr("transform", "translate(0," + height + ")")
             .call(xAxis);
+
+        svg.append("text")
+            .attr("text-anchor", "middle")  // this makes it easy to centre the text as the transform is applied to the anchor
+            .attr("transform", "translate("+ (width/2) +","+(height+(100/3))+")")  // centre below axis
+            .text(label);
 
         /*
         * Adding refresh method to reload new data

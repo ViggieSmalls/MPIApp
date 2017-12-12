@@ -4,6 +4,7 @@ import subprocess
 import numpy as np
 import pandas as pd
 from datetime import datetime
+import logging
 
 class File:
     def __init__(self, full_path):
@@ -45,6 +46,7 @@ class File:
 
 class Micrograph:
     def __init__(self, name):
+        self.logger = logging.getLogger('mpi_application')
         self.micrograph = File(name)
         self.dir = os.path.dirname(self.micrograph.abspath)
         self.name = os.path.basename(self.micrograph.abspath)
@@ -54,8 +56,7 @@ class Micrograph:
         self.created_at = datetime.now()
         self.ntrials = 3
         self.timeout = 300 # seconds
-        #FIXME: Write to log, with time
-        print('Micrograph object created for {}.'.format(self.name))
+        self.logger.info('Micrograph object created for {}.'.format(self.name))
 
     @property
     def motioncor_options(self):
@@ -67,8 +68,7 @@ class Micrograph:
             self._motioncor_options = options
             self.motioncor_executable = self._motioncor_options.pop('path_to_executable')
         except:
-            # FIXME write to log
-            print("Motioncor options not valid.")
+            self.logger.warning("Motioncor options are not valid")
 
     @property
     def gctf_options(self):
@@ -80,8 +80,7 @@ class Micrograph:
             self._gctf_options = options
             self.gctf_executable = self._gctf_options.pop('path_to_executable')
         except:
-            # FIXME write to log
-            print("Gctf options not valid.")
+            self.logger.warning("Gctf options are not valid")
 
     def process(self, gpu_id):
         self.process_dir = os.path.join(self.dir, self.basename)
@@ -90,14 +89,12 @@ class Micrograph:
         os.chdir(self.process_dir)
 
         if not self.motioncor_options:
-            #FIXME: write to log
-            print('No motioncor parameters provided. Skipping motioncor for micrograph {}'.format(self.name))
+            self.logger.info('No motioncor parameters provided. Skipping motioncor for micrograph {}'.format(self.name))
         else:
             self.run_motioncor(gpu_id)
             print({self.micrograph.name:self.motioncor_results})
         if not self.gctf_options:
-            #FIXME: write to log
-            print('No gctf parameters provided. Skipping gctf for micrograph {}'.format(self.name))
+            self.logger.info('No gctf parameters provided. Skipping gctf for micrograph {}'.format(self.name))
         else:
             self.run_gctf(gpu_id)
             print({self.micrograph.name:self.gctf_results})
@@ -113,9 +110,8 @@ class Micrograph:
             finally:
                 k = '-' + k
                 cmd.extend([k,str(v)])
-        # FIXME: Log cmd to log file
-        print(' '.join(map(str, cmd)))
-        # TODO: return result as a dictionary, or 'failed' as values of dictionary
+
+        self.logger.info('Executing: ' + ' '.join(map(str, cmd)))
         for i in range(self.ntrials):
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             try:
@@ -123,11 +119,11 @@ class Micrograph:
                 out, err = process.communicate()
 
                 if err:
-                    print('Motioncor for micrograph {} did not finish successfully. (trial {})\n'.format(self.name,i+1))
+                    self.logger.warning('Motioncor for micrograph {} did not finish successfully. (trial {})\n'.format(self.name,i+1))
                     continue
 
                 else:
-                    print('Motioncor for micrograph {} was executed successfully. (trial {})\n'.format(self.name,i+1))
+                    self.logger.info('Motioncor for micrograph {} was executed successfully. (trial {})\n'.format(self.name,i+1))
                     self.motioncor_output_files = {
                         'motioncor_aligned_DW': File(os.path.splitext(self.micrograph.abspath)[0] + '_DW.mrc'),
                         'motioncor_aligned_no_DW': File(os.path.splitext(self.micrograph.abspath)[0] + '.mrc'),
@@ -136,16 +132,14 @@ class Micrograph:
                     with open(self.motioncor_output_files['motioncor_log'].abspath, "w") as log:
                         log.write(out.decode('utf-8'))
                     # output a dictionary with the names of the output files
-                    # TODO add location of files
                     self.motioncor_results = {k:os.path.join('motioncor',v.name) for k,v in self.motioncor_output_files.items()}
-
                     return
 
             except subprocess.TimeoutExpired:
-                print('Timeout of {} s expired for motioncor on micrograph {}. (trial {})\n'.format(self.timeout,self.name,i+1))
+                self.logger.warning('Timeout of {} s expired for motioncor on micrograph {}. (trial {})\n'.format(self.timeout,self.name,i+1))
                 continue
 
-        print("No motioncor results could be generated for micrograph {}".format(self.micrograph.name))
+        self.logger.error("No motioncor results could be generated for micrograph {}".format(self.micrograph.name))
         self.motioncor_results = {}
         self.motioncor_output_files = {}
         return
@@ -156,23 +150,20 @@ class Micrograph:
         else:
             try:
                 self.gctf_input = self.motioncor_output_files['motioncor_aligned_no_DW']
-                print("Using {} as input for gctf".format(self.gctf_input.name))
+                self.logger.info("Using {} as input for gctf".format(self.gctf_input.name))
             except:
-                # FIXME write to log
-                print('No input for gctf available. Skipping gctf for micrograph {}'.format(self.name))
+                self.logger.warning('No input for gctf available. Skipping gctf for micrograph {}'.format(self.name))
                 return
 
         cmd = [ self.gctf_executable ]
         for k, v in self.gctf_options.items():
-            # FIXME what happens if gpu id option is accidentally given in the config file?
             try: v = v.format(gpu_id=gpu_id)
             except: pass
             finally:
                 k = '--' + k
                 cmd.extend([k,str(v)])
         cmd.append(self.gctf_input.abspath)
-        # FIXME: Log cmd to log file
-        print(' '.join(map(str, cmd)))
+        self.logger.info('Execute: '+' '.join(map(str, cmd)))
 
         for i in range(self.ntrials):
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -181,10 +172,10 @@ class Micrograph:
                 out, err = process.communicate()
 
                 if err:
-                    print('Gctf for micrograph {} did not finish successfully. (trial {})\n'.format(self.gctf_input.name,i+1))
+                    self.logger.warning('Gctf for micrograph {} did not finish successfully. (trial {})\n'.format(self.gctf_input.name,i+1))
 
                 else:
-                    print('Gctf for micrograph {} was executed successfully. (trial {})\n'.format(self.gctf_input.name,i+1))
+                    self.logger.info('Gctf for micrograph {} was executed successfully. (trial {})\n'.format(self.gctf_input.name,i+1))
 
                     self.gctf_output_files = {
                         'gctf_ctf_fit': File(os.path.splitext(self.gctf_input.abspath)[0] + '.ctf'),
@@ -214,12 +205,11 @@ class Micrograph:
                     self.gctf_results['Resolution'] = res
                     del self.gctf_results['CCC']
 
-                    # TODO add location of files
                     self.gctf_results.update( {k:os.path.join('gctf',v.name) for k,v in self.gctf_output_files.items()} )
                     return
 
             except subprocess.TimeoutExpired:
-                print('Timeout of {} s expired for motioncor on micrograph {}. (trial {})\n'.format(self.timeout,self.name,i+1))
+                self.logger.warning('Timeout of {} s expired for gctf on micrograph {}. (trial {})\n'.format(self.timeout,self.name,i+1))
                 continue
 
         self.gctf_results = {}
@@ -227,8 +217,7 @@ class Micrograph:
         return
 
     def move_to_output_directory(self, directory):
-        # FIXME print to log
-        assert os.path.isdir(directory), print('Target directory does not exist!')
+        assert os.path.isdir(directory), self.logger.error('Target directory does not exist!')
         raw_frames_dir = os.path.join(directory, 'frames')
         motioncor_dir = os.path.join(directory, 'motioncor')
         gctf_dir = os.path.join(directory, 'gctf')

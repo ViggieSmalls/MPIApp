@@ -11,7 +11,6 @@ def crop_image(input: str, output_directory: str, height: int):
     :param input: path to image file
     :param output_directory: path to output directory
     :param height: height of the output PNG image in pixels
-    :return:
     """
     for executable in ["header", "newstack", "mrc2tif"]:
         assert shutil.which(executable), "Executable {} does not exist!".format(executable)
@@ -63,13 +62,13 @@ class ProcessTable:
         self.static_gctf = os.path.join(self.static_folder, 'gctf')
         if not os.path.isdir(self.static_folder):
             os.mkdir(self.static_folder)
-            self.logger.info('Created folder {}'.format(self.static_folder))
+            self.logger.debug('Created folder {}'.format(self.static_folder))
         if not os.path.isdir(self.static_motioncor):
             os.mkdir(self.static_motioncor)
-            self.logger.info('Created folder {}'.format(self.static_motioncor))
+            self.logger.debug('Created folder {}'.format(self.static_motioncor))
         if not os.path.isdir(self.static_gctf):
             os.mkdir(self.static_gctf)
-            self.logger.info('Created folder {}'.format(self.static_gctf))
+            self.logger.debug('Created folder {}'.format(self.static_gctf))
         self.logger.info('Finished creating static folders')
 
         try:
@@ -107,21 +106,20 @@ class ProcessTable:
         Performs some pre processing of the columns and writes the contents of
         the DataFrame to the process_table file
         """
-        self.logger.info('Converting {} entries to pandas.DataFrame object'.format(len(self.columns)))
+        self.logger.debug('Converting {} entries to pandas.DataFrame object'.format(len(self.columns)))
         df = pd.DataFrame(columns=self.columns)
         for series in self.series:
             df = df.append(series)
         if not df.empty:
             df = df.sort_values(by='created_at')
-            print("Writing results to process table.")
             df['Defocus'] = df[["Defocus_U", "Defocus_V"]].mean(axis=1)
             df[['Defocus', 'Defocus_U', 'Defocus_V']] = df[['Defocus', 'Defocus_U', 'Defocus_V']] / 1000
             df[['Phase_shift']] = df[['Phase_shift']] / 180
             df['delta_Defocus'] = df["Defocus_U"] - df["Defocus_V"]
 
-        self.logger.info('Writing to process table')
+        self.logger.debug('Writing to process table')
         df.to_csv(self.file, index_label='micrograph')
-        self.logger.info('Finished writing contents of DataFrame to {}'.format(os.path.basename(self.file)))
+        self.logger.debug('Finished writing contents of DataFrame to {}'.format(os.path.basename(self.file)))
 
         if self.stop_event.is_set():
             self.logger.info('Stop event is set. Closing process table')

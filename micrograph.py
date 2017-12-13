@@ -12,7 +12,6 @@ class File:
         self.name = os.path.basename(full_path)
         self._abspath = full_path
 
-    # FIXME rename to dir
     @property
     def path(self):
         return self._path
@@ -92,12 +91,12 @@ class Micrograph:
             self.logger.info('No motioncor parameters provided. Skipping motioncor for micrograph {}'.format(self.name))
         else:
             self.run_motioncor(gpu_id)
-            print({self.micrograph.name:self.motioncor_results})
+            self.logger.info({self.micrograph.name:self.motioncor_results})
         if not self.gctf_options:
             self.logger.info('No gctf parameters provided. Skipping gctf for micrograph {}'.format(self.name))
         else:
             self.run_gctf(gpu_id)
-            print({self.micrograph.name:self.gctf_results})
+            self.logger.info({self.micrograph.name:self.gctf_results})
         os.chdir('..')
 
     def run_motioncor(self, gpu_id):
@@ -154,6 +153,10 @@ class Micrograph:
             except:
                 self.logger.warning('No input for gctf available. Skipping gctf for micrograph {}'.format(self.name))
                 return
+
+        # FIXME implement more nicely
+        self.gctf_ctfstar = os.path.join(self.process_dir, self.basename + '.star')
+        self.gctf_options['ctfstar'] = self.gctf_ctfstar
 
         cmd = [ self.gctf_executable ]
         for k, v in self.gctf_options.items():

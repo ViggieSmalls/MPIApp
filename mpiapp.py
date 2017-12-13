@@ -13,8 +13,9 @@ def main(conf, files):
     queue = Queue()
     watch_manager = pyinotify.WatchManager()
 
-    for file in files:
-        queue.put(file)
+    if bool(files):
+        for file in files:
+            queue.put(file)
 
     process_table = ProcessTable(conf.output_directory, stop_event)
 
@@ -71,8 +72,7 @@ class EventHandler(pyinotify.ProcessEvent):
         all events that finished writing and have the specified extension are added to the queue
         """
         if os.path.splitext(event.pathname)[1] == self.pattern:
-            # FIXME write to log
-            print('New micrograph: {}. Inserting in queue.'.format(event.name))
+            self.logger.info('New micrograph: {}. Inserting in queue.'.format(event.name))
             mic = Micrograph(event.pathname)
             self.queue.put(mic)
 
@@ -106,7 +106,7 @@ if __name__ == "__main__":
     logger = logging.getLogger('mpi_application')
     logger.setLevel(logging.DEBUG)
     fh = logging.FileHandler('mpiapp.log')
-    fh.setLevel(logging.DEBUG)
+    fh.setLevel(logging.INFO)
     ch = logging.StreamHandler()
     ch.setLevel(logging.ERROR)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')

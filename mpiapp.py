@@ -8,7 +8,7 @@ from config_parser import ConfigParser
 from process_table import ProcessTable
 from micrograph import Micrograph
 
-def main(conf, files):
+def main(conf, files=None):
     stop_event = Event()
     queue = Queue()
     watch_manager = pyinotify.WatchManager()
@@ -46,7 +46,7 @@ def main(conf, files):
         except:
             logger.error('Worker threads could not be initialized')
 
-    user_input = input("Type 'quit' to stop processing.")
+    user_input = input("Running MPIApp\nType 'quit' to stop processing:")
     if user_input == "quit":
         new_input = input("Are you sure you want to quit? (y/[n])")
         if new_input == "y":
@@ -92,7 +92,13 @@ def worker(gpu_id, results_directory, queue, stop_event, motioncor_options, gctf
         mic.motioncor_options = motioncor_options.copy()
         mic.gctf_options = gctf_options.copy()
         mic.process(gpu_id)
+        # TODO: implement moving files and getting results inside the mic.process function
         mic.move_to_output_directory(results_directory)
+        try:
+            os.rmdir(mic.process_dir)
+        except OSError:
+            #FIXME log warning message
+            pass
         results = {**mic.motioncor_results, **mic.gctf_results, 'created_at': mic.created_at}
         process_table.addMic(mic.basename, results)
 

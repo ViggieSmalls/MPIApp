@@ -6,36 +6,76 @@
     <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/c3/0.4.17/c3.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.10.16/css/jquery.dataTables.min.css">
+    <style>
+
+        body {
+          font: 10px sans-serif;
+        }
+
+        .bar rect {
+          shape-rendering: crispEdges;
+        }
+
+        .bar text {
+          fill: #999999;
+        }
+
+        .axis path, .axis line {
+          fill: none;
+          stroke: #000;
+          shape-rendering: crispEdges;
+        }
+
+    </style>
 </head>
 <body>
 
 <div id="chart"></div>
 
-<div class="w3-row">
-
-    <div class="w3-col m6 w3-row-padding">
-      <div class="w3-half">
-          <img id="dw-image" src="" alt="Downweighted image" style="width:100%">
-      </div>
-      <div class="w3-half">
-          <img id="ps-image" src="" alt="Power Spectrum" style="width:100%">
-      </div>
+<div class="w3-main">
+  <div class="w3-row-padding">
+    <div class="w3-quarter w3-container w3-margin-bottom" style="height: 300px">
+        <img id="dw-image" src="" alt="Downweighted image" style="height: 100%">
     </div>
-
+    <div class="w3-quarter w3-container w3-margin-bottom" style="height: 300px">
+        <img id="ps-image" src="" alt="Power Spectrum" style="height: 100%">
+    </div>
+    <div class="w3-quarter w3-container w3-margin-bottom">
+        <svg width="350" height="200" id="histogram_defocus"></svg>
+    </div>
+    <div class="w3-quarter w3-container">
+        <svg width="350" height="200" id="histogram_resolution"></svg>
+    </div>
+  </div>
 </div>
 
-<table id="example" class="display" width="100%"></table>
+
+<div class="w3-bottom">
+    <table id="data_table" class="display" width="100%"></table>
+</div>
+
 
 </body>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
-<script src="//cdn.datatables.net/1.10.16/js/jquery.dataTables.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/c3/0.4.17/c3.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.16/js/jquery.dataTables.min.js"></script>
+<script src="static/js/histogram.js"></script>
 <script>
-    d3.csv('test_folder_names.csv', function (data) {
+    d3.csv('process_table.csv', function (pt_data) {
+
+        var data_defocus = [];
+        var data_resolution = [];
+        for (i=0; i<pt_data.length ;i++) {
+            data_defocus.push(parseFloat(pt_data[i].Defocus));
+            data_resolution.push(parseFloat(pt_data[i].Resolution))
+        }
+        histogram(data_defocus, 'steelblue', '#histogram_defocus', 'Defocus (\u03BCm)', 3);
+        histogram(data_resolution, 'Olive', '#histogram_resolution', 'Resolution (\u212B)', 1);
+
         var chart = c3.generate({
             data: {
-                json: data,
+                json: pt_data,
                 keys: {
                     x: 'micrograph',
                     value: ['Defocus', 'Phase_shift']
@@ -86,18 +126,12 @@
             }
         });
 
-        var data_defocus = [];
-        var data_resolution = [];
-        for (i=0; i<data.length ;i++) {
-            data_defocus.push(parseFloat(data[i].Defocus));
-            data_resolution.push(parseFloat(data[i].Resolution))
-        }
         //console.log(micrographs);
         $(document).ready(function() {
-            var table = $('#example').DataTable( {
-                data: data,
+            var table = $('#data_table').DataTable( {
+                data: pt_data,
                 "createdRow": function( row, data, dataIndex ) {
-                    if ( parseFloat(data["Defocus"]) >= 0.45 ) {
+                    if ( parseFloat(Math.abs(data["delta_Defocus"])) >= 0.4 ) {
                         $(row).addClass( 'w3-yellow' );
                     }
                 },
@@ -154,7 +188,7 @@
             $("#dw-image").attr("src",'static/' + motioncor_png);
             $("#ps-image").attr("src",'static/' + gctf_png);
 
-            $('#example tbody').on( 'click', 'tr', function () {
+            $('#data_table tbody').on( 'click', 'tr', function () {
                 var mic_id = $(this).attr("id");
                 $("#dw-image").attr("src",`static/motioncor/${mic_id}_DW.png`);
                 $("#ps-image").attr("src",`static/gctf/${mic_id}.png`);

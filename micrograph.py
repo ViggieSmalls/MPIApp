@@ -55,7 +55,7 @@ class Micrograph:
         self.created_at = datetime.now()
         self.ntrials = 3
         self.timeout = 300 # seconds
-        self.logger.info('Micrograph object created for {}.'.format(self.name))
+        self.logger.debug('Micrograph object created for {}.'.format(self.name))
 
     @property
     def motioncor_options(self):
@@ -92,11 +92,13 @@ class Micrograph:
         else:
             self.run_motioncor(gpu_id)
             self.logger.info({self.micrograph.name:self.motioncor_results})
+
         if not self.gctf_options:
             self.logger.info('No gctf parameters provided. Skipping gctf for micrograph {}'.format(self.name))
         else:
             self.run_gctf(gpu_id)
             self.logger.info({self.micrograph.name:self.gctf_results})
+
         os.chdir('..')
 
     def run_motioncor(self, gpu_id):
@@ -208,6 +210,17 @@ class Micrograph:
                     self.gctf_results['Resolution'] = res
                     del self.gctf_results['CCC']
 
+                    self.logger.info('Reading Gctf star file for micrograph {}'.format(self.name))
+                    with open(self.gctf_ctfstar, 'r') as star_file:
+                        content = star_file.read()
+                        lines = list(filter(None, content.split('\n')))
+                        columns = list(filter(lambda s: s.startswith('_'), lines))
+                        object = lines[-1].split()
+                        self.gctf_results.update(dict(zip(columns, object)))
+
+                    self.logger.info('Removing Gctf star file {}'.format(self.gctf_ctfstar))
+                    os.remove(self.gctf_ctfstar)
+
                     self.gctf_results.update( {k:os.path.join('gctf',v.name) for k,v in self.gctf_output_files.items()} )
                     return
 
@@ -215,6 +228,7 @@ class Micrograph:
                 self.logger.warning('Timeout of {} s expired for gctf on micrograph {}. (trial {})\n'.format(self.timeout,self.name,i+1))
                 continue
 
+        self.logger.error('Could not process gctf for micrograph {}'.format(self.name))
         self.gctf_results = {}
         self.gctf_output_files = {}
         return

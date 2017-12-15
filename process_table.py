@@ -30,6 +30,7 @@ def crop_image(input: str, output_directory: str, height: int):
     png_path = os.path.join(output_directory, png)
     subprocess.Popen(["mrc2tif", "-p", tmp, png_path],
                      stdout=subprocess.PIPE, stderr=subprocess.PIPE).wait()
+    os.remove(tmp)
     return
 
 class ProcessTable:
@@ -49,6 +50,9 @@ class ProcessTable:
         which starts writing every x seconds to the process table file
         """
         self.file = os.path.join(self.path, 'process_table.csv')
+        self.gctf_star = os.path.join(self.path, 'micrographs_all_gctf.star')
+        shutil.copy('templates/project.html', self.path)
+
         try:
             open(self.file, 'a').close()
             self.logger.info('Process table file was created at {}'.format(self.file))
@@ -58,11 +62,16 @@ class ProcessTable:
 
         self.logger.info('Creating static folders inside the output directory')
         self.static_folder = os.path.join(self.path, 'static')
+        self.static_js = os.path.join(self.static_folder, 'js')
         self.static_motioncor = os.path.join(self.static_folder, 'motioncor')
         self.static_gctf = os.path.join(self.static_folder, 'gctf')
         if not os.path.isdir(self.static_folder):
             os.mkdir(self.static_folder)
             self.logger.debug('Created folder {}'.format(self.static_folder))
+        if not os.path.isdir(self.static_js):
+            os.mkdir(self.static_js)
+            self.logger.debug('Created folder {}'.format(self.static_js))
+            shutil.copy('static/js/histogram.js', self.static_js)
         if not os.path.isdir(self.static_motioncor):
             os.mkdir(self.static_motioncor)
             self.logger.debug('Created folder {}'.format(self.static_motioncor))
@@ -77,7 +86,7 @@ class ProcessTable:
             self.dump()
         except:
             self.logger.error('Could not write to {}'.format(self.file))
-            self.logger.info('Process table could not be initialized')
+            self.logger.error('Process table could not be initialized')
             return
 
     def addMic(self, micrograph_name, results: dict):
@@ -111,6 +120,7 @@ class ProcessTable:
         for series in self.series:
             df = df.append(series)
         if not df.empty:
+            #create process_table.csv
             df = df.sort_values(by='created_at')
             df['Defocus'] = df[["Defocus_U", "Defocus_V"]].mean(axis=1)
             df[['Defocus', 'Defocus_U', 'Defocus_V']] = df[['Defocus', 'Defocus_U', 'Defocus_V']] / 1000
@@ -120,6 +130,27 @@ class ProcessTable:
         self.logger.debug('Writing to process table')
         df.to_csv(self.file, index_label='micrograph')
         self.logger.debug('Finished writing contents of DataFrame to {}'.format(os.path.basename(self.file)))
+
+        if not df.empty:
+            # write gctf star file
+            self.logger.debug('Writing gctf star file')
+            _rln = df.filter(regex=("^_rln.*"))
+            keys = list(_rln.columns)
+            d = [i.split() for i in keys]
+            d = [(i[0], int(i[1][1:])) for i in d]
+            sorted_list = sorted(d, key=lambda x: x[1])
+            columns = [i[0] + ' #' + str(i[1]) for i in sorted_list]
+            rln = _rln[columns]
+            rln['_rlnMicrographName #1'] = df['motioncor_aligned_no_DW']
+            rln['_rlnCtfImage #2'] = df['gctf_ctf_fit'].apply(lambda s: s+':mrc')
+            rln.to_csv(self.gctf_star, index=False, header=False, sep='\t')
+
+            with open(self.gctf_star, 'r+') as f:
+                content = f.read()
+                f.seek(0, 0)
+                f.write('data_\nloop_\n' + '\n'.join(columns) + '\n' + content)
+            self.logger.debug('Finished writing gctf star file')
+
 
         if self.stop_event.is_set():
             self.logger.info('Stop event is set. Closing process table')

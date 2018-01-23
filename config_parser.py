@@ -25,6 +25,9 @@ class ConfigParser(ConfigObj):
         self.cs = float(self.general_options['cs'])
         self.ac = float(self.general_options['amplitude_contrast'])
 
+        self.motioncor_parameters = ['InMrc', 'InTiff', 'InSuffix', 'OutMrc', 'ArcDir', 'Gain', 'TmpFile', 'LogFile', 'Serial', 'MaskCent', 'MaskSize', 'Patch', 'Iter', 'Tol', 'Bft', 'StackZ', 'FtBin', 'InitDose', 'FmDose', 'PixSize', 'kV', 'Throw', 'Trunc', 'Group', 'FmRef', 'OutStack', 'RotGain', 'FlipGain', 'Align', 'Tilt', 'Mag', 'Crop', 'Gpu']
+        self.gctf_parameters = ['apix', 'kV', 'cs', 'ac', 'phase_shift_L', 'phase_shift_H', 'phase_shift_S', 'phase_shift_T', 'dstep', 'defL', 'defH', 'defS', 'astm', 'bfac', 'resL', 'resH', 'boxsize', 'do_EPA', 'EPA_oversmp', 'overlap', 'convsize', 'do_Hres_ref', 'Href_resL', 'Href_resH', 'Href_bfac', 'B_resL', 'B_resH', 'do_mdef_refine', 'mdef_aveN', 'mdef_fit', 'mdef_ave_type', 'do_local_refine', 'local_radius', 'local_avetype', 'local_boxsize', 'local_overlap', 'local_resL', 'local_resH', 'refine_local_astm', 'refine_input_ctf', 'defU_init', 'defV_init', 'defA_init', 'B_init', 'defU_err', 'defV_err', 'defA_err', 'B_err', 'do_phase_flip', 'do_validation', 'ctfout_resL', 'ctfout_resH', 'ctfout_bfac', 'input_ctfstar', 'boxsuffix', 'ctfstar', 'logsuffix', 'write_local_ctf', 'plot_res_ring', 'do_unfinished', 'skip_check_mrc', 'skip_check_gpu', 'gid']
+
         self.motioncor_options.update({
             'kV': self.voltage,
             'PixSize': self.pixel_size,

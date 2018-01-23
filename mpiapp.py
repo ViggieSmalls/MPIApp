@@ -7,21 +7,19 @@ from threading import Thread, Event
 from config_parser import ConfigParser
 from process_table import ProcessTable
 from micrograph import Micrograph
+from time import sleep
 
 def main(conf, files=None):
     stop_event = Event()
     queue = Queue()
     watch_manager = pyinotify.WatchManager()
 
-    if bool(files):
-        for file in files:
-            queue.put(file)
-
     process_table = ProcessTable(conf.output_directory, stop_event)
     handler = EventHandler(queue=queue, pattern=conf.file_extesion)
     notifier = pyinotify.ThreadedNotifier(watch_manager, handler)
     notifier.daemon = True
     notifier.start()
+
     if os.path.isdir(conf.input_directory):
         logger.info('Adding watch to directory {}'.format(conf.input_directory))
         watch_manager.add_watch(conf.input_directory, pyinotify.ALL_EVENTS)
@@ -47,16 +45,21 @@ def main(conf, files=None):
         except:
             logger.error('Worker threads could not be initialized')
 
+    Thread(target=add_files_to_queue, args=(files, queue), daemon=True).start()
+
     user_input = input("Running MPIApp\nType 'quit' to stop processing:")
     if user_input == "quit":
         new_input = input("Are you sure you want to quit? (y/[n])")
         if new_input == "y":
             logger.info('Setting stop event')
             stop_event.set()
-            logger.info('')
             notifier.stop()
-            logger.info('All MPIApp threads were successfully shut down')
 
+def add_files_to_queue(files, queue):
+    if bool(files):
+        for file in files:
+            queue.put(Micrograph(file))
+            sleep(0.5)  # wait a little until all Micrograph class is initialized
 
 class EventHandler(pyinotify.ProcessEvent):
     def my_init(self, **kwargs):
@@ -78,7 +81,7 @@ class EventHandler(pyinotify.ProcessEvent):
             mic = Micrograph(event.pathname)
             self.queue.put(mic)
 
-def worker(gpu_id, results_directory, queue, stop_event, motioncor_options, gctf_options, process_table):
+def worker(gpu_id: int, results_directory, queue, stop_event, motioncor_options, gctf_options, process_table):
     """
     Gets event names from the queue and starts processing them
     :param gpu_id: all steps required to process a micrograph are done on one GPU
@@ -103,7 +106,8 @@ def worker(gpu_id, results_directory, queue, stop_event, motioncor_options, gctf
             pass
         results = {**mic.motioncor_results, **mic.gctf_results, 'created_at': mic.created_at}
         process_table.addMic(mic.basename, results)
-
+    if stop_event.is_set():
+        logger.info("Worker thread for GPU {} was shut down".format(str(gpu_id)))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="A task processing automation tool")

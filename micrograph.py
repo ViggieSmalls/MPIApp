@@ -66,6 +66,8 @@ class Micrograph:
         try:
             self._motioncor_options = options
             self.motioncor_executable = self._motioncor_options.pop('path_to_executable')
+            self.motioncor_timeout = int(self._motioncor_options.pop('timeout'))
+            self.motioncor_trials = int(self._motioncor_options.pop('trials'))
         except:
             self.logger.warning("Motioncor options are not valid")
 
@@ -78,6 +80,9 @@ class Micrograph:
         try:
             self._gctf_options = options
             self.gctf_executable = self._gctf_options.pop('path_to_executable')
+            self.gctf_timeout = int(self._gctf_options.pop('timeout'))
+            self.gctf_trials = int(self._gctf_options.pop('trials'))
+            self.gctf_cc_cutoff = float(self._gctf_options.pop('cc_cutoff'))
         except:
             self.logger.warning("Gctf options are not valid")
 
@@ -99,7 +104,7 @@ class Micrograph:
             self.run_gctf(gpu_id)
             self.logger.info({self.micrograph.name:self.gctf_results})
 
-        os.chdir('..')
+        # os.chdir('..')
 
     def run_motioncor(self, gpu_id):
         cmd = [ self.motioncor_executable ]
@@ -113,10 +118,10 @@ class Micrograph:
                 cmd.extend([k,str(v)])
 
         self.logger.info('Executing: ' + ' '.join(map(str, cmd)))
-        for i in range(self.ntrials):
+        for i in range(self.motioncor_trials):
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             try:
-                process.wait(timeout=self.timeout)
+                process.wait(timeout=self.motioncor_timeout)
                 out, err = process.communicate()
 
                 if err:
@@ -170,10 +175,10 @@ class Micrograph:
         cmd.append(self.gctf_input.abspath)
         self.logger.info('Execute: '+' '.join(map(str, cmd)))
 
-        for i in range(self.ntrials):
+        for i in range(self.gctf_trials):
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             try:
-                process.wait(timeout=self.timeout)
+                process.wait(timeout=self.gctf_timeout)
                 out, err = process.communicate()
 
                 if err:
@@ -204,8 +209,8 @@ class Micrograph:
                                          names=['Resolution', '|CTFsim|', 'EPA( Ln|F| )', 'EPA(Ln|F| - Bg)',
                                                 'CCC'],
                                          header=1)
-                    cut_off_ccc = 0.75
-                    index = epa_df.CCC.lt(cut_off_ccc).idxmax()
+
+                    index = epa_df.CCC.lt(self.gctf_cc_cutoff).idxmax()
                     res = epa_df.iloc[index]['Resolution']
                     self.gctf_results['Resolution'] = res
                     del self.gctf_results['CCC']

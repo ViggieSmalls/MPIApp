@@ -4,34 +4,28 @@ import pandas as pd
 import subprocess
 import shutil
 import logging
+import matplotlib.pyplot as plt
+import mrcfile
+import numpy as np
+from scipy import misc
+import logging
+from skimage import exposure
 
-def crop_image(input: str, output_directory: str, height: int):
-    """
-    Calls imod programs to convert an mrc file to png for displaying it in the web page
-    :param input: path to image file
-    :param output_directory: path to output directory
-    :param height: height of the output PNG image in pixels
-    """
-    for executable in ["header", "newstack", "mrc2tif"]:
-        assert shutil.which(executable), "Executable {} does not exist!".format(executable)
+def crop_image(input_mrc, output_dir, equalize_hist=False):
+    logging.captureWarnings(True)
 
-    # get image size
-    get_size = subprocess.Popen(["header", "-size", input], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    out,err = get_size.communicate()
-    x,y,z = map(int, out.split())
-    # scale image
-    tmp = os.path.join("/tmp", os.path.basename(input))
-    scale_factor = float(y) / height
-    scale_image = subprocess.Popen(["newstack", "-shrink", str(scale_factor), input, tmp],
-                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    scale_image.wait()
-    # convert to png
-    png = os.path.splitext(os.path.basename(input))[0] + ".png"
-    png_path = os.path.join(output_directory, png)
-    subprocess.Popen(["mrc2tif", "-p", tmp, png_path],
-                     stdout=subprocess.PIPE, stderr=subprocess.PIPE).wait()
-    os.remove(tmp)
-    return
+    with mrcfile.mmap(input_mrc, mode='r+', permissive=True) as mrc:
+        mrc.header.map = mrcfile.constants.MAP_ID  # output .mrc files from motioncor need this correction
+        mrc.update_header_from_data()
+
+    mrc = mrcfile.open(input_mrc)
+    image_ary = np.squeeze(mrc.data)  # remove single-dimensional entries
+    if equalize_hist == True:
+        image_ary = exposure.equalize_hist(image_ary)
+    base = os.path.splitext(os.path.basename(input_mrc))[0]
+    output_image = os.path.join(output_dir, base + '.png')
+    misc.imsave(output_image, image_ary)
+    pass
 
 class ProcessTable:
 
@@ -62,16 +56,11 @@ class ProcessTable:
 
         self.logger.info('Creating static folders inside the output directory')
         self.static_folder = os.path.join(self.path, 'static')
-        self.static_js = os.path.join(self.static_folder, 'js')
         self.static_motioncor = os.path.join(self.static_folder, 'motioncor')
         self.static_gctf = os.path.join(self.static_folder, 'gctf')
         if not os.path.isdir(self.static_folder):
             os.mkdir(self.static_folder)
             self.logger.debug('Created folder {}'.format(self.static_folder))
-        if not os.path.isdir(self.static_js):
-            os.mkdir(self.static_js)
-            self.logger.debug('Created folder {}'.format(self.static_js))
-            shutil.copy('static/js/histogram.js', self.static_js)
         if not os.path.isdir(self.static_motioncor):
             os.mkdir(self.static_motioncor)
             self.logger.debug('Created folder {}'.format(self.static_motioncor))
@@ -103,10 +92,10 @@ class ProcessTable:
         #TODO create static images as part of the micrograph processing
         if 'motioncor_aligned_DW' in results:
             img = os.path.join(self.path, results['motioncor_aligned_DW'])
-            crop_image(img, self.static_motioncor, 800)
+            crop_image(img, self.static_motioncor, equalize_hist=True)
         if 'gctf_ctf_fit' in results:
             img = os.path.join(self.path, results['gctf_ctf_fit'])
-            crop_image(img, self.static_gctf, 800)
+            crop_image(img, self.static_gctf)
 
     def dump(self):
         """
@@ -123,13 +112,24 @@ class ProcessTable:
             #create process_table.csv
             df = df.sort_values(by='created_at')
             df['Defocus'] = df[["Defocus_U", "Defocus_V"]].mean(axis=1)
-            df[['Defocus', 'Defocus_U', 'Defocus_V']] = df[['Defocus', 'Defocus_U', 'Defocus_V']] / 1000
+            df[['Defocus', 'Defocus_U', 'Defocus_V']] = df[['Defocus', 'Defocus_U', 'Defocus_V']] / 10000
             df[['Phase_shift']] = df[['Phase_shift']] / 180
             df['delta_Defocus'] = df["Defocus_U"] - df["Defocus_V"]
+
+            df.hist('Resolution', edgecolor='black', color='green')
+            plt.xlabel('Resolution (\u212B)')
+            plt.savefig(os.path.join(self.path, 'histogram_resolution.png'))
+            plt.close()
+            df.hist('Defocus', edgecolor='black', color='blue')
+            plt.xlabel('Defocus (\u03BCm)')
+            plt.savefig(os.path.join(self.path, 'histogram_defocus.png'))
+            plt.close()
+
 
         self.logger.debug('Writing to process table')
         df.to_csv(self.file, index_label='micrograph')
         self.logger.debug('Finished writing contents of DataFrame to {}'.format(os.path.basename(self.file)))
+
 
         if not df.empty:
             # write gctf star file

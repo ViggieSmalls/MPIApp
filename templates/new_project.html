@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test</title>
+    <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/c3/0.4.17/c3.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.16/css/jquery.dataTables.min.css">
+    <style>
+
+        body {
+          font: 10px sans-serif;
+        }
+
+        .bar rect {
+          shape-rendering: crispEdges;
+        }
+
+        .bar text {
+          fill: #999999;
+        }
+
+        .axis path, .axis line {
+          fill: none;
+          stroke: #000;
+          shape-rendering: crispEdges;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="w3-sidebar w3-bar-block" style="width:60%; overflow: hidden;">
+    <div id="chart" style="height: 40%; margin-top: 10px"></div>
+
+    <div style="width: 100%; height: 60%; ">
+        <table id="data_table" class="display" width="100%"></table>
+    </div>
+</div>
+
+<div style="margin-left:60%">
+
+    <div style="text-align: center;">
+        <h4>Downweighted image</h4>
+        <img id="dw-image" src="" alt="Downweighted image" style="width: 300px">
+    </div>
+    <div style="text-align: center;">
+        <h4>Power Spectrum</h4>
+        <img id="ps-image" src="" alt="Power Spectrum" style="width: 300px;">
+    </div>
+
+    <div style="text-align: center;">
+        <svg id="histogram_defocus" width="350" height="200"></svg>
+    </div>
+    <div style="text-align: center;">
+        <svg id="histogram_resolution" width="350" height="200"></svg>
+    </div>
+
+
+</div>
+
+
+</body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/c3/0.4.17/c3.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.16/js/jquery.dataTables.min.js"></script>
+<!--script src="static/js/histogram.js"></script-->
+<script>
+    function variance (x) {
+  var n = x.length;
+  if (n < 1) return NaN;
+  if (n === 1) return 0;
+  var mean = d3.mean(x),
+      i = -1,
+      s = 0;
+  while (++i < n) {
+    var v = x[i] - mean;
+    s += v * v;
+  }
+  return s / (n - 1);
+}
+
+//A test for outliers http://en.wikipedia.org/wiki/Chauvenet%27s_criterion
+function chauvenet (x, dMax) {
+    //var dMax = 3;
+    var mean = d3.mean(x);
+    var stdv = Math.sqrt(variance(x));
+    var counter = 0;
+    var temp = [];
+
+    for (var i = 0; i < x.length; i++) {
+        if(dMax > (Math.abs(x[i] - mean))/stdv) {
+            temp[counter] = x[i];
+            counter = counter + 1;
+        }
+    }
+    return temp
+}
+
+function histogram (data_input, color, id, label, dMax) {
+
+        var trimmed = chauvenet(data_input, dMax);
+
+        // A formatter for counts.
+        var formatCount = d3.format(",.0f");
+
+        var svg = d3.select(id),
+            margin = {top: 20, right: 30, bottom: 30, left: 30},
+            width = +svg.attr("width") - margin.left - margin.right,
+            height = +svg.attr("height") - margin.top - margin.bottom;
+
+        var max = d3.max(trimmed);
+        var min = d3.min(trimmed);
+
+        var x = d3.scale.linear()
+              .domain([min, max])
+              .range([0, width]);
+
+        // Generate a histogram using twenty uniformly-spaced bins.
+        var data = d3.layout.histogram()
+            .bins(x.ticks(20))
+            (trimmed);
+
+        var yMax = d3.max(data, function(d){return d.length});
+        var yMin = d3.min(data, function(d){return d.length});
+        var colorScale = d3.scale.linear()
+                    .domain([yMin, yMax])
+                    .range([d3.rgb(color).brighter(), d3.rgb(color).darker()]);
+
+        var y = d3.scale.linear()
+            .domain([0, yMax])
+            .range([height, 20]);
+
+        var xAxis = d3.svg.axis()
+            .scale(x)
+            .orient("bottom");
+            //.tickFormat(function (d) {return d3.format(",.2f")(d) + " \u03BCm"});
+
+        svg.attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .append("g")
+            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+        var bar = svg.selectAll(".bar")
+            .data(data)
+          .enter().append("g")
+            .attr("class", "bar")
+            .attr("transform", function(d) { return "translate(" + x(d.x) + "," + y(d.y) + ")"; });
+
+        bar.append("rect")
+            .attr("x", 1)
+            .attr("width", (x(data[0].dx) - x(0)) - 1)
+            .attr("height", function(d) { return height - y(d.y); })
+            .attr("fill", function(d) { return colorScale(d.y) });
+
+        bar.append("text")
+            .attr("dy", ".75em")
+            .attr("y",-12)
+            .attr("x", (x(data[0].dx) - x(0)) / 2)
+            .attr("text-anchor", "middle")
+            .text(function(d) { return formatCount(d.y); });
+
+        svg.append("g")
+            .attr("class", "x axis")
+            .attr("transform", "translate(0," + height + ")")
+            .call(xAxis);
+
+        svg.append("text")
+            .attr("text-anchor", "middle")  // this makes it easy to centre the text as the transform is applied to the anchor
+            .attr("transform", "translate("+ (width/2) +","+(height+(100/3))+")")  // centre below axis
+            .text(label);
+
+        /*
+        * Adding refresh method to reload new data
+        */
+        function refresh(values){
+          // var values = d3.range(1000).map(d3.random.normal(20, 5));
+          var data = d3.layout.histogram()
+            .bins(x.ticks(20))
+            (values);
+
+          // Reset y domain using new data
+          var yMax = d3.max(data, function(d){return d.length});
+          var yMin = d3.min(data, function(d){return d.length});
+          y.domain([0, yMax]);
+          var colorScale = d3.scale.linear()
+                      .domain([yMin, yMax])
+                      .range([d3.rgb(color).brighter(), d3.rgb(color).darker()]);
+
+          var bar = svg.selectAll(".bar").data(data);
+
+          // Remove object with data
+          bar.exit().remove();
+
+          bar.transition()
+            .duration(1000)
+            .attr("transform", function(d) { return "translate(" + x(d.x) + "," + y(d.y) + ")"; });
+
+          bar.select("rect")
+              .transition()
+              .duration(1000)
+              .attr("height", function(d) { return height - y(d.y); })
+              .attr("fill", function(d) { return colorScale(d.y) });
+
+          bar.select("text")
+              .transition()
+              .duration(1000)
+              .text(function(d) { return formatCount(d.y); });
+
+        }
+
+        // Calling refresh repeatedly.
+        // setInterval(function() {
+        //   var values = d3.range(1000).map(d3.random.normal(20, 5));
+        //   refresh(values);
+        // }, 2000);
+
+        // http://bl.ocks.org/phil-pedruco/6917114
+        // Borrowed from Jason Davies science library https://github.com/jasondavies/science.js/blob/master/science.v1.js
+
+
+}
+</script>
+<script>
+    d3.csv('process_table.csv', function (pt_data) {
+
+        var chart_data_keys_value = [];
+        if(pt_data[0] != null && pt_data[0].hasOwnProperty('Phase_shift')){
+            chart_data_keys_value.push('Phase_shift');
+        }
+        if(pt_data[0] != null && pt_data[0].hasOwnProperty('Defocus')){
+
+            chart_data_keys_value.push('Defocus');
+
+            var data_defocus = [];
+            var data_resolution = [];
+            for (i=0; i<pt_data.length ;i++) {
+                data_defocus.push(parseFloat(pt_data[i].Defocus));
+                data_resolution.push(parseFloat(pt_data[i].Resolution))
+            }
+
+            // histograms are created with d3 library because c3 does not have a histogram function
+            if(data_defocus.length > 1 && data_resolution > 1 ){
+                histogram(data_defocus, 'steelblue', '#histogram_defocus', 'Defocus (\u03BCm)', 3);
+                histogram(data_resolution, 'Olive', '#histogram_resolution', 'Resolution (\u212B)', 1);
+            }
+
+        }
+
+        // here starts the code for time line plot
+        var chart = c3.generate({
+            data: {
+                json: pt_data,
+                keys: {
+                    x: 'micrograph',
+                    value: chart_data_keys_value
+                },
+                axes: {
+                    Defocus: 'y',
+                    Phase_shift: 'y2'
+                },
+                empty: { label: { text: "No Data Available" } },
+                //one can make some more interaction with this, e.g. display an image
+                onclick: function(d, i) { console.log(d.index); }
+            },
+            axis: {
+                x: {
+                    type: 'category',
+                    extent: [0,50],
+                    tick: {
+                        fit: false
+                    }
+                },
+                y: {
+                    tick: {
+                        format: function (d) {return d3.format(",.1f")(d) + " \u03BCm";}
+                    },
+                    label: {
+                        text: 'Defocus',
+                        position: 'outer-middle'
+                    }
+                },
+                y2: {
+                    tick: {
+                        format: function (d) {return d3.format(",.1f")(d) + " \u03c0";}
+                    },
+                    show: true,
+                    label: {
+                        text: 'Phase shift',
+                        position: 'outer-middle'
+                    }
+                }
+            },
+            transition: {
+                duration: 0
+            },
+            // set to false to speed things up
+            interaction: {
+                enabled: true
+            },
+            subchart: {
+                show: true
+            }
+        });
+
+        $(document).ready(function() {
+            var table = $('#data_table').DataTable( {
+                scrollY:        '48vh',
+                scrollCollapse: true,
+                paging:         false,
+                data: pt_data,
+                "createdRow": function( row, data, dataIndex ) {
+                    if ( parseFloat(Math.abs(data["delta_Defocus"])) >= 0.4 ) {
+                        $(row).addClass( 'w3-yellow' );
+                    }
+                },
+                columns: [
+                    { data: "micrograph" },
+                    { data: "Defocus" },
+                    { data: "delta_Defocus" },
+                    { data: "Phase_shift" },
+                    { data: "Resolution" }
+                ],
+                columnDefs: [
+                    {
+                        "targets": 0,
+                        "title": "micrograph"
+                    },
+                    {
+                        "targets": 1,
+                        "render": function ( data) {
+                                      return parseFloat(data).toFixed(2);
+                                },
+                        "title": "Defocus"
+                    },
+                    {
+                        "targets": 2,
+                        "render": function ( data) {
+                                      return parseFloat(data).toFixed(3);
+                                },
+                        "title": "delta_Defocus"
+                    },
+                    {
+                        "targets": 3,
+                        "render": function ( data) {
+                                      return parseFloat(data).toFixed(1);
+                                },
+                        "title": "Phase_shift"
+                    },
+                    {
+                        "targets": 4,
+                        "render": function ( data) {
+                                      return parseFloat(data).toFixed(1);
+                                },
+                        "title": "Resolution"
+                    }
+                ],
+                "rowCallback": function( row, data ) {
+                    $(row).attr('id', data["micrograph"]);
+                }
+            } );
+
+            var last_image = table.row(':last', { order: 'applied' }).data();
+            var motioncor_image = last_image["motioncor_aligned_DW"];
+            var motioncor_png = motioncor_image.replace(".mrc",".png");
+            var gctf_image = last_image['gctf_ctf_fit'];
+            var gctf_png = gctf_image.replace(".ctf",".png");
+            $("#dw-image").attr("src",'static/' + motioncor_png);
+            $("#ps-image").attr("src",'static/' + gctf_png);
+
+            $('#data_table tbody').on( 'click', 'tr', function () {
+                var mic_id = $(this).attr("id");
+                $("#dw-image").attr("src",`static/motioncor/${mic_id}_DW.png`);
+                $("#ps-image").attr("src",`static/gctf/${mic_id}.png`);
+
+                if ( $(this).hasClass('selected') ) {
+                    $(this).removeClass('selected');
+                }
+                else {
+                    table.$('tr.selected').removeClass('selected');
+                    $(this).addClass('selected');
+                }
+
+            });
+        } );
+
+    });
+</script>
+</html>

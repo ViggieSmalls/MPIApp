@@ -1,6 +1,6 @@
 var project_name = MYLIBRARY.project_name();
-var data_url = '/' + project_name + '/data/'
-var refresh_time_interval = 10000
+var data_url = '/' + project_name + '/data/';
+var refresh_time_interval = 10000;
 
 // generate timeline chart and barchart
 $.getJSON(data_url,
@@ -13,7 +13,7 @@ $.getJSON(data_url,
                     data_dict['timeline']['labels'],
                     data_dict['timeline']['Defocus'],
                     data_dict['timeline']['delta_Defocus'],
-                    data_dict['timeline']['Phase_shift'],
+                    data_dict['timeline']['Phase_shift']
                 ],
                 axes: {
                     delta_Defocus: 'y',
@@ -21,7 +21,7 @@ $.getJSON(data_url,
                     Phase_shift: 'y2'
                 },
                 types: {
-                    delta_Defocus: 'bar',
+                    delta_Defocus: 'bar'
                 },
                 groups: [
                     ['Defocus', 'delta_Defocus']
@@ -165,21 +165,21 @@ function update_progress(url) {
                 data_dict['timeline']['Defocus'],
                 data_dict['timeline']['delta_Defocus'],
                 data_dict['timeline']['Phase_shift']
-            ],
+            ]
         });
         window.defocus.load({
             columns: [
                 data_dict['defocus']['bins'],
                 data_dict['defocus']['data']
-            ],
+            ]
         });
         window.resolution.load({
             columns: [
                 data_dict['resolution']['bins'],
                 data_dict['resolution']['data']
-            ],
+            ]
         });
         setTimeout(function () { update_progress(url); }, refresh_time_interval);
     });
-};
+}
 

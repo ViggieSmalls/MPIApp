@@ -17,6 +17,7 @@ class ConfigParser(ConfigObj):
         self.static_directory = os.path.join(self.output_directory, 'static_files')
         self.GPUs = list(map(int, self.setup_options['GPUs'].split()))
         self.file_extesion = self.setup_options['file_extension']
+        self.logfile = os.path.join(self.output_directory, self.setup_options['logfile'])
 
         self.pixel_size = float(self.general_options['pixel_size'])
         self.voltage = float(self.general_options['voltage'])

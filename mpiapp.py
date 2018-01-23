@@ -18,14 +18,15 @@ def main(conf, files=None):
             queue.put(file)
 
     process_table = ProcessTable(conf.output_directory, stop_event)
-
-    logger.info('Configuring EventHandler')
     handler = EventHandler(queue=queue, pattern=conf.file_extesion)
     notifier = pyinotify.ThreadedNotifier(watch_manager, handler)
     notifier.daemon = True
     notifier.start()
-    logger.info('Adding watch to directory {}'.format(conf.input_directory))
-    watch_manager.add_watch(conf.input_directory, pyinotify.ALL_EVENTS)
+    if os.path.isdir(conf.input_directory):
+        logger.info('Adding watch to directory {}'.format(conf.input_directory))
+        watch_manager.add_watch(conf.input_directory, pyinotify.ALL_EVENTS)
+    else:
+        logger.error('Input directory does not exist')
 
     worker_kwargs = {
         'results_directory': conf.output_directory,
@@ -65,6 +66,7 @@ class EventHandler(pyinotify.ProcessEvent):
         self.logger = logging.getLogger('mpi_application')
         self.queue = kwargs['queue']
         self.pattern = kwargs['pattern']
+        self.logger.info('EventHandler was initialized')
         self.logger.info('Watching for all events with the file extension {}'.format(self.pattern))
 
     def process_IN_CLOSE_WRITE(self, event):
@@ -109,9 +111,11 @@ if __name__ == "__main__":
     parser.add_argument("--files", help="Provide data to process queue", nargs='+')
     args = parser.parse_args()
 
+    configurations = ConfigParser(args.config_file)
+
     logger = logging.getLogger('mpi_application')
     logger.setLevel(logging.DEBUG)
-    fh = logging.FileHandler('mpiapp.log')
+    fh = logging.FileHandler(configurations.logfile)
     fh.setLevel(logging.INFO)
     ch = logging.StreamHandler()
     ch.setLevel(logging.ERROR)
@@ -121,10 +125,7 @@ if __name__ == "__main__":
     logger.addHandler(ch)
     logger.addHandler(fh)
 
-    stop_event = Event()
-    logger.info('Reading configurations from file {}'.format(os.path.abspath(args.config_file)))
-    configurations = ConfigParser(args.config_file)
-    logger.info('Configuration files were read successfully')
+    logger.info('Configuration files were read successfully from file {}'.format(os.path.abspath(args.config_file)))
+    logger.info('Starting MPIApp')
 
-    logger.info('Starting MPIApp in process mode')
     main(conf=configurations, files=args.files)

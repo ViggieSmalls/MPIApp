@@ -4,7 +4,6 @@
     output_directory = /home/viktor/pool
     file_extension = '.tif'
     GPUs = 0 1
-    logfile = mpi_app.log
 
 [general]
 
@@ -19,18 +18,27 @@
 
 [motioncor]
 
-    path_to_executable = motioncor
-    InTiff = {basename}.tif
-    OutMrc = {basename}.mrc
+    timeout = 300
+    trials = 3
+    executable = motioncor
+
+    InTiff = %(input)s
+    OutMrc = %(output)s
     Gain = /home/viktor/Downloads/20s_test_data/SuperRef_20S_000_Mar28_14.49.23.mrc
     Patch = 5 5
     FtBin = 2
     Bft = 300
     Throw = 2
+    Gpu = %(GPU_ID)s
 
 [gctf]
 
-    path_to_executable = /opt/gctf/Gctf_v1.06/bin/Gctf-v1.06_sm_30_cu8.0_x86_64
+    timeout = 300
+    trials = 3
+    cc_cutoff = 0.75
+    executable = gctf
+
+    Gpu = %(GPU_ID)s
     phase_shift_L = 10
     phase_shift_H = 175
     phase_shift_S = 10

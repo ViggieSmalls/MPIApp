@@ -30,28 +30,35 @@
 </head>
 <body>
 
-<div id="chart"></div>
+<div class="w3-sidebar w3-bar-block" style="width:60%; overflow: hidden;">
+    <div id="chart" style="height: 40%; margin-top: 10px"></div>
 
-<div class="w3-main">
-  <div class="w3-row-padding">
-    <div class="w3-quarter w3-container w3-margin-bottom" style="height: 300px">
-        <img id="dw-image" src="" alt="Downweighted image" style="height: 100%">
+    <div style="width: 100%; height: 60%; ">
+        <table id="data_table" class="display" width="100%"></table>
     </div>
-    <div class="w3-quarter w3-container w3-margin-bottom" style="height: 300px">
-        <img id="ps-image" src="" alt="Power Spectrum" style="height: 100%">
-    </div>
-    <div class="w3-quarter w3-container w3-margin-bottom">
-        <svg width="350" height="200" id="histogram_defocus"></svg>
-    </div>
-    <div class="w3-quarter w3-container">
-        <svg width="350" height="200" id="histogram_resolution"></svg>
-    </div>
-  </div>
 </div>
 
+<div style="margin-left:60%">
 
-<div class="w3-bottom">
-    <table id="data_table" class="display" width="100%"></table>
+    <div style="text-align: center;">
+        <h4>Downweighted image</h4>
+        <img id="dw-image" src="" alt="Downweighted image" style="width: 60%">
+    </div>
+    <div style="text-align: center;">
+        <h4>Power Spectrum</h4>
+        <img id="ps-image" src="" alt="Power Spectrum" style="width: 60%">
+    </div>
+
+    <div style="text-align: center;">
+        <h4>Defocus Histogram</h4>
+        <img src="histogram_defocus.png" alt="Histogram Defocus" style="width: 60%">
+    </div>
+    <div style="text-align: center;">
+        <h4>Resolution Histogram</h4>
+        <img src="histogram_resolution.png" alt="Histogram Resolution" style="width: 60%">
+    </div>
+
+
 </div>
 
 
@@ -60,31 +67,32 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/c3/0.4.17/c3.min.js"></script>
 <script src="https://cdn.datatables.net/1.10.16/js/jquery.dataTables.min.js"></script>
-<script src="static/js/histogram.js"></script>
 <script>
     d3.csv('process_table.csv', function (pt_data) {
 
-        var data_defocus = [];
-        var data_resolution = [];
-        for (i=0; i<pt_data.length ;i++) {
-            data_defocus.push(parseFloat(pt_data[i].Defocus));
-            data_resolution.push(parseFloat(pt_data[i].Resolution))
+        var chart_data_keys_value = [];
+        if(pt_data[0] != null && pt_data[0].hasOwnProperty('Phase_shift')){
+            chart_data_keys_value.push('Phase_shift');
         }
-        histogram(data_defocus, 'steelblue', '#histogram_defocus', 'Defocus (\u03BCm)', 3);
-        histogram(data_resolution, 'Olive', '#histogram_resolution', 'Resolution (\u212B)', 1);
+        if(pt_data[0] != null && pt_data[0].hasOwnProperty('Defocus')){
+            chart_data_keys_value.push('Defocus');
+        }
 
+        // here starts the code for time line plot
         var chart = c3.generate({
             data: {
                 json: pt_data,
                 keys: {
                     x: 'micrograph',
-                    value: ['Defocus', 'Phase_shift']
+                    value: chart_data_keys_value
                 },
                 axes: {
-                    Defocus_U: 'y',
-                    Defocus_V: 'y',
+                    Defocus: 'y',
                     Phase_shift: 'y2'
-                }
+                },
+                empty: { label: { text: "No Data Available" } },
+                //one can make some more interaction with this, e.g. display an image
+                onclick: function(d, i) { console.log(d.index); }
             },
             axis: {
                 x: {
@@ -126,9 +134,11 @@
             }
         });
 
-        //console.log(micrographs);
         $(document).ready(function() {
             var table = $('#data_table').DataTable( {
+                scrollY:        '48vh',
+                scrollCollapse: true,
+                paging:         false,
                 data: pt_data,
                 "createdRow": function( row, data, dataIndex ) {
                     if ( parseFloat(Math.abs(data["delta_Defocus"])) >= 0.4 ) {
@@ -180,6 +190,7 @@
                     $(row).attr('id', data["micrograph"]);
                 }
             } );
+
             var last_image = table.row(':last', { order: 'applied' }).data();
             var motioncor_image = last_image["motioncor_aligned_DW"];
             var motioncor_png = motioncor_image.replace(".mrc",".png");
@@ -203,6 +214,7 @@
 
             });
         } );
+
     });
 </script>
 </html>

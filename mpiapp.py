@@ -115,11 +115,11 @@ if __name__ == "__main__":
     parser.add_argument("--files", help="Provide data to process queue", nargs='+')
     args = parser.parse_args()
 
-    configurations = ConfigParser(args.config_file)
+    config = ConfigParser(args.config_file)
 
     logger = logging.getLogger('mpi_application')
     logger.setLevel(logging.DEBUG)
-    fh = logging.FileHandler(configurations.logfile)
+    fh = logging.FileHandler(config.logfile)
     fh.setLevel(logging.INFO)
     ch = logging.StreamHandler()
     ch.setLevel(logging.ERROR)
@@ -129,7 +129,9 @@ if __name__ == "__main__":
     logger.addHandler(ch)
     logger.addHandler(fh)
 
-    logger.info('Configuration files were read successfully from file {}'.format(os.path.abspath(args.config_file)))
-    logger.info('Starting MPIApp')
-
-    main(conf=configurations, files=args.files)
+    if config.is_valid():
+        logger.info('Configuration file was read successfully from file {}'.format(os.path.abspath(args.config_file)))
+        logger.info('Starting MPIApp')
+        main(conf=config, files=args.files)
+    else:
+        logger.error('Configurations could not be read successfully from file {}'.format(os.path.abspath(args.config_file)))

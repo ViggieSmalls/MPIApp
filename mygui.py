@@ -10,7 +10,7 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 from queue import Queue
-from threading import Thread, Lock
+from threading import Thread, Lock, Event
 
 import mrcfile
 from scipy import misc
@@ -80,8 +80,9 @@ class MPIApp(QtWidgets.QDialog):
         'refine_after_EPA'
         }
 
-        self.process_table = pd.DataFrame()
+        self.df = pd.DataFrame()
         self.process_table_lock = Lock()
+        self.logger = logging.getLogger(__name__)
 
     def select_input_directory(self):
         directory = str(QtWidgets.QFileDialog.getExistingDirectory(self, "Select Directory"))
@@ -191,8 +192,10 @@ class MPIApp(QtWidgets.QDialog):
             self.set_parameter(self.motioncor_defaults,'FmDose', self.ui.line_dose_per_frame.text())
             self.set_parameter(self.main_defaults,'Gain', self.ui.line_Gain.text())
             self.motioncor_defaults['Gain'] = self.main_defaults['Gain']
-            self.motioncor_timeout = int(self.ui.motioncor_timeout.text())
-            self.motioncor_trials = int(self.ui.motioncor_trials.text())
+            motioncor_timeout = int(self.ui.motioncor_timeout.text())
+            motioncor_trials = int(self.ui.motioncor_trials.text())
+            self.motioncor = Motioncor(motioncor_timeout, motioncor_trials, self.logger, self.motioncor_defaults,
+                                  self.outputDir)
         except Exception as ex:
             raise ex
 
@@ -202,82 +205,105 @@ class MPIApp(QtWidgets.QDialog):
             self.set_parameter(self.gctf_defaults, 'apix', self.ui.line_apix.text())
             self.set_parameter(self.gctf_defaults, 'cs', self.ui.line_cs.text())
             self.set_parameter(self.gctf_defaults, 'ac', self.ui.line_ac.text())
-            self.gctf_timeout = 100
-            self.gctf_trials = 3
-            self.gctf_cc_cutoff = 0.75
+            gctf_timeout = 100
+            gctf_trials = 3
+            gctf_cc_cutoff = 0.75
+            self.gctf = Gctf(gctf_timeout, gctf_trials, self.logger, self.gctf_defaults, self.outputDir, gctf_cc_cutoff)
         except Exception as ex:
             raise ex
 
     def start_logging(self):
-        self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging.DEBUG)
-        fh = logging.FileHandler(os.path.join(self.outputDir, 'mpiapp.log'))
-        fh.setLevel(logging.INFO)
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-        fh.setFormatter(formatter)
-        self.logger.addHandler(fh)
+        """
+        Start logging to 'mpiapp.log' inside the output directory
+        If there is already a file handler, do nothing
+        """
+        if not self.logger.handlers:
+            self.logger.setLevel(logging.DEBUG)
+            fh = logging.FileHandler(os.path.join(self.outputDir, 'mpiapp.log'))
+            fh.setLevel(logging.INFO)
+            formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+            fh.setFormatter(formatter)
+            self.logger.addHandler(fh)
 
     def start_process_queue(self):
         self.queue = Queue()
+        self.stop_event = Event()
 
     def start_event_notifier(self):
-        wm = pyinotify.WatchManager()
-        self.notifier = pyinotify.ThreadedNotifier(wm, EventHandler(logger=self.logger, queue=self.queue, file_extension=self.file_extension))
+        """
+        Watch the input directory for new files that have the
+        specified file extension
+        """
+        self.wm = pyinotify.WatchManager()
+        self.notifier = pyinotify.ThreadedNotifier(self.wm, EventHandler(logger=self.logger, queue=self.queue, file_extension=self.file_extension))
         self.notifier.daemon = True
         self.notifier.start()
-        wm.add_watch(self.inputDir, pyinotify.ALL_EVENTS)
+        self.wdd = self.wm.add_watch(self.inputDir, pyinotify.ALL_EVENTS)
 
     def worker(self, gpu_id):
-        motioncor = Motioncor(self.motioncor_timeout, self.motioncor_trials, self.logger, self.motioncor_defaults,
-                                   self.outputDir)
-        gctf = Gctf(self.gctf_timeout, self.gctf_trials, self.logger, self.gctf_defaults, self.outputDir, self.gctf_cc_cutoff)
-        while True:
+        while (not self.stop_event.is_set()):
             micrograph = self.queue.get()
-            self.logger.info('Processing Micrograph {}'.format(micrograph.basename))
-            try:
-                motioncor(micrograph, gpu_id)
-                self.process_table.update(micrograph)
-                gctf(micrograph, gpu_id)
-                self.process_table_update(micrograph)
-            except Exception as ex:
-                self.logger.error(str(ex))
+            if micrograph is None:
+                # in case we want to stop the worker if queue is empty,
+                # we just put None inside the Queue
+                break
+            else:
+                self.logger.info('Processing Micrograph {}'.format(micrograph.basename))
+                try:
+                    self.motioncor(micrograph, gpu_id)
+                    self.process_table.update(micrograph)
+                    # self.gctf(micrograph, gpu_id)
+                    # self.process_table_update(micrograph)
+                except Exception as ex:
+                    self.logger.error(str(ex))
+        if self.stop_event.is_set():
+            self.logger.info("Worker thread for GPU {} was shut down".format(str(gpu_id)))
 
     def start_worker_threads(self):
-        gpu_threads = [Thread(target=self.worker, args=(i,)) for i in self.GPUs]
-        for thread in gpu_threads:
+        """
+        Start a thread for each GPU ID. Each thread will process one
+        micrograph sequentially
+        :return:
+        """
+        self.gpu_threads = [Thread(target=self.worker, args=(i,)) for i in self.GPUs]
+        for thread in self.gpu_threads:
             self.logger.info('Starting thread for GPU with ID: {}'.format(thread._args[0]))
             thread.daemon = True
             thread.start()
 
     def process_table_update(self, micrograph):
         """
-        Update the table with the micrograph data. This replaces
-        previous values, but can also add new columns to the
-        DataFrame
-        :param micrograph:
+        Update the DatFrame with the micrograph data (Series object).
         """
         self.process_table_lock.acquire()
-        self.df.loc[micrograph.id] = micrograph.data
+        self.df = self.df.append(micrograph.data)
+        # self.df.loc[micrograph.id] = micrograph.data
         self.process_table_lock.release()
 
     def process_table_dump(self):
-
-        csv_file = "process_table.csv"
-        gctf_star = 'micrographs_all_gctf.star'
+        """
+        Write the data in the process table to a csv file
+        and to a star file to use as input for relion
+        """
+        csv_file = os.path.join(self.outputDir, "process_table.csv")
+        gctf_star = os.path.join(self.outputDir, 'micrographs_all_gctf.star')
 
         self.process_table_lock.acquire()
 
-        # write to process_table.csv
+        # create some additional columns for the web page
         if not self.df.empty:
             self.df['Defocus'] = self.df[["Defocus_U", "Defocus_V"]].mean(axis=1)
             self.df[['Defocus', 'Defocus_U', 'Defocus_V']] = self.df[['Defocus', 'Defocus_U', 'Defocus_V']] / 1000
             self.df[['Phase_shift']] = self.df[['Phase_shift']] / 180
             self.df['delta_Defocus'] = self.df["Defocus_U"] - self.df["Defocus_V"]
 
+        # write to process_table.csv
+        self.logger.debug('Writing data to process table csv file')
         self.df.to_csv(csv_file, index_label='micrograph')
 
         # write to micrographs_all_gctf.star
         if not self.df.empty:
+            self.logger.debug('Writing data to star file')
             _rln = self.df.filter(regex=("^_rln.*"))
             keys = list(_rln.columns)
             d = [i.split() for i in keys]
@@ -303,7 +329,9 @@ class MPIApp(QtWidgets.QDialog):
             self.get_input_dir()
             self.get_output_dir()
             self.get_motioncor_options()
+            # self.get_gctf_options()
             self.ui.btn_Run.setText('Abort')
+            self.ui.btn_Run.clicked.disconnect()
             self.ui.btn_Run.clicked.connect(self.abort)
             self.run()
         except Exception as ex:
@@ -314,10 +342,21 @@ class MPIApp(QtWidgets.QDialog):
         self.start_process_queue()
         self.start_event_notifier()
         self.start_worker_threads()
+        self.timer = QtCore.QTimer()
+        self.timer.timeout.connect(self.process_table_dump)
+        self.timer.start(10000) # write data to csv file every 10 seconds
         pass
 
     def abort(self):
-        sys.exit()
+        self.notifier.stop()
+        self.stop_event.set()
+        self.queue.queue.clear()
+        for _ in self.gpu_threads:
+            self.queue.put(None)
+        self.timer.stop()
+        self.ui.btn_Run.setText('Run')
+        self.ui.btn_Run.clicked.disconnect()
+        self.ui.btn_Run.clicked.connect(self.accept)
         pass
 
     def exit(self):
@@ -437,11 +476,14 @@ class Motioncor:
         self.options = options
         self.output_dir = output_directory
         self.static_dir = os.path.join(self.output_dir, 'static', 'motioncor') # directory to which png files will be saved to
+        if not os.path.isdir(self.static_dir):
+            os.makedirs(self.static_dir)
 
     def __call__(self, micrograph, gpu_id):
         assert 'motioncor_input' in micrograph.files
         options = self.options.copy() # create a copy of the dict, or other threads might override values
         options['Gpu'] = gpu_id
+        options['OutMrc'] = os.path.splitext(micrograph.abspath)[0] + '.mrc'
 
         cmd = ['motioncor']
 
@@ -498,7 +540,7 @@ class Micrograph:
         self.files = {
             'motioncor_input': self.abspath,
         }
-        self.data = pd.Series()
+        self.data = pd.Series(name=self.id)
         self.logger = logger
 
     def add_data(self, dictionary):

@@ -1,0 +1,961 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Dialog</class>
+ <widget class="QDialog" name="Dialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>708</width>
+    <height>466</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>MPIApp</string>
+  </property>
+  <widget class="QTabWidget" name="tabWidget">
+   <property name="geometry">
+    <rect>
+     <x>9</x>
+     <y>10</y>
+     <width>691</width>
+     <height>421</height>
+    </rect>
+   </property>
+   <property name="inputMethodHints">
+    <set>Qt::ImhNone</set>
+   </property>
+   <property name="currentIndex">
+    <number>0</number>
+   </property>
+   <widget class="QWidget" name="Main">
+    <property name="layoutDirection">
+     <enum>Qt::LeftToRight</enum>
+    </property>
+    <attribute name="title">
+     <string>Main</string>
+    </attribute>
+    <widget class="QGroupBox" name="gridGroupBox">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>200</y>
+       <width>261</width>
+       <height>181</height>
+      </rect>
+     </property>
+     <property name="title">
+      <string>Microscope Parameters</string>
+     </property>
+     <property name="flat">
+      <bool>false</bool>
+     </property>
+     <property name="checkable">
+      <bool>false</bool>
+     </property>
+     <layout class="QGridLayout" name="gridLayout_2" columnstretch="0,0,0">
+      <property name="spacing">
+       <number>6</number>
+      </property>
+      <item row="4" column="1">
+       <widget class="QLineEdit" name="line_ac">
+        <property name="placeholderText">
+         <string>0.1</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QLineEdit" name="line_dose_per_frame">
+        <property name="placeholderText">
+         <string>1</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="label_9">
+        <property name="text">
+         <string>Spherical Aberration</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="0">
+       <widget class="QLabel" name="label_6">
+        <property name="text">
+         <string>Voltage</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="label_8">
+        <property name="text">
+         <string>Dose per Frame</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QLineEdit" name="line_cs">
+        <property name="placeholderText">
+         <string>2.62</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QLineEdit" name="line_apix">
+        <property name="placeholderText">
+         <string>0.53</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QLineEdit" name="line_kV">
+        <property name="enabled">
+         <bool>true</bool>
+        </property>
+        <property name="inputMethodHints">
+         <set>Qt::ImhNone</set>
+        </property>
+        <property name="placeholderText">
+         <string>300</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="label_7">
+        <property name="text">
+         <string>Pixel Size</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="2">
+       <widget class="QLabel" name="label_60">
+        <property name="text">
+         <string>kV</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0">
+       <widget class="QLabel" name="label_10">
+        <property name="text">
+         <string>Amplitude Constrast</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="2">
+       <widget class="QLabel" name="label_61">
+        <property name="text">
+         <string>A / pix</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="2">
+       <widget class="QLabel" name="label_62">
+        <property name="text">
+         <string>e / A²</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="2">
+       <widget class="QLabel" name="label_63">
+        <property name="text">
+         <string>mm</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+    <widget class="QGroupBox" name="formGroupBox">
+     <property name="geometry">
+      <rect>
+       <x>9</x>
+       <y>9</y>
+       <width>671</width>
+       <height>181</height>
+      </rect>
+     </property>
+     <property name="title">
+      <string>Setup Parameters</string>
+     </property>
+     <layout class="QGridLayout" name="gridLayout">
+      <item row="2" column="0">
+       <widget class="QLabel" name="label">
+        <property name="text">
+         <string>Input Directory</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="2">
+       <widget class="QPushButton" name="btnGain">
+        <property name="text">
+         <string>Select File</string>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="0">
+       <widget class="QLabel" name="label_5">
+        <property name="text">
+         <string>GPUs</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="1">
+       <layout class="QHBoxLayout" name="horizontalLayout">
+        <item>
+         <widget class="QRadioButton" name="radio_tif">
+          <property name="text">
+           <string>tif</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QRadioButton" name="radio_mrc">
+          <property name="text">
+           <string>mrc</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item row="4" column="1">
+       <widget class="QLineEdit" name="line_Gain"/>
+      </item>
+      <item row="3" column="1">
+       <widget class="QLineEdit" name="line_OutputDir"/>
+      </item>
+      <item row="3" column="2">
+       <widget class="QPushButton" name="btnOutputDir">
+        <property name="text">
+         <string>Select Directory</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="2">
+       <widget class="QPushButton" name="btnInputDir">
+        <property name="text">
+         <string>Select Directory</string>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="1">
+       <layout class="QHBoxLayout" name="horizontalLayout_2">
+        <item>
+         <widget class="QCheckBox" name="GPU_0">
+          <property name="text">
+           <string>0</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="GPU_1">
+          <property name="text">
+           <string>1</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="GPU_2">
+          <property name="text">
+           <string>2</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="GPU_3">
+          <property name="text">
+           <string>3</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="GPU_4">
+          <property name="text">
+           <string>4</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="GPU_5">
+          <property name="text">
+           <string>5</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="GPU_6">
+          <property name="text">
+           <string>6</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="GPU_7">
+          <property name="text">
+           <string>7</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="GPU_8">
+          <property name="text">
+           <string>8</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="GPU_9">
+          <property name="text">
+           <string>9</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item row="2" column="1">
+       <widget class="QLineEdit" name="line_InputDir"/>
+      </item>
+      <item row="5" column="0">
+       <widget class="QLabel" name="label_4">
+        <property name="text">
+         <string>File Extension</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0">
+       <widget class="QLabel" name="label_3">
+        <property name="text">
+         <string>Gain Reference</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="label_2">
+        <property name="text">
+         <string>Output Directory</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </widget>
+   <widget class="QWidget" name="Motioncor">
+    <attribute name="title">
+     <string>Motioncor</string>
+    </attribute>
+    <widget class="QGroupBox" name="groupBox_2">
+     <property name="geometry">
+      <rect>
+       <x>180</x>
+       <y>10</y>
+       <width>151</width>
+       <height>210</height>
+      </rect>
+     </property>
+     <property name="title">
+      <string>Main parameters</string>
+     </property>
+     <layout class="QFormLayout" name="formLayout_4">
+      <item row="0" column="0">
+       <widget class="QLabel" name="label_18">
+        <property name="text">
+         <string>FmDose</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QLineEdit" name="motioncor_FmDose">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="autoFillBackground">
+         <bool>false</bool>
+        </property>
+        <property name="readOnly">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="label_16">
+        <property name="text">
+         <string>FtBin</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QLineEdit" name="motioncor_FtBin"/>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="label_17">
+        <property name="text">
+         <string>InitDose</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QLineEdit" name="motioncor_InitDose"/>
+      </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="label_11">
+        <property name="text">
+         <string>Patch</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QLineEdit" name="motioncor_Patch">
+        <property name="placeholderText">
+         <string/>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0">
+       <widget class="QLabel" name="label_19">
+        <property name="text">
+         <string>Throw</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="1">
+       <widget class="QLineEdit" name="motioncor_Throw"/>
+      </item>
+      <item row="5" column="0">
+       <widget class="QLabel" name="label_28">
+        <property name="text">
+         <string>Mag</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="1">
+       <widget class="QLineEdit" name="motioncor_Mag"/>
+      </item>
+     </layout>
+    </widget>
+    <widget class="QGroupBox" name="groupBox_4">
+     <property name="geometry">
+      <rect>
+       <x>340</x>
+       <y>10</y>
+       <width>161</width>
+       <height>210</height>
+      </rect>
+     </property>
+     <property name="title">
+      <string>GroupBox</string>
+     </property>
+     <layout class="QFormLayout" name="formLayout_6">
+      <item row="0" column="0">
+       <widget class="QLabel" name="label_12">
+        <property name="text">
+         <string>Iter</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QLineEdit" name="motioncor_Iter">
+        <property name="placeholderText">
+         <string/>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="label_27">
+        <property name="text">
+         <string>Tilt</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QLineEdit" name="motioncor_Tilt"/>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="label_21">
+        <property name="text">
+         <string>Group</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QLineEdit" name="motioncor_Group"/>
+      </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="label_22">
+        <property name="text">
+         <string>FmRef</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QLineEdit" name="motioncor_FmRef"/>
+      </item>
+      <item row="4" column="0">
+       <widget class="QLabel" name="label_23">
+        <property name="text">
+         <string>RotGain</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="1">
+       <widget class="QLineEdit" name="motioncor_RotGain"/>
+      </item>
+      <item row="5" column="0">
+       <widget class="QLabel" name="label_24">
+        <property name="text">
+         <string>FlipGain</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="1">
+       <widget class="QLineEdit" name="motioncor_FlipGain"/>
+      </item>
+     </layout>
+    </widget>
+    <widget class="QGroupBox" name="groupBox_11">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>10</y>
+       <width>161</width>
+       <height>94</height>
+      </rect>
+     </property>
+     <property name="title">
+      <string>Setup</string>
+     </property>
+     <layout class="QFormLayout" name="formLayout_3">
+      <item row="0" column="0">
+       <widget class="QLabel" name="label_26">
+        <property name="text">
+         <string>Timeout</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QLineEdit" name="motioncor_timeout">
+        <property name="text">
+         <string>300</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="label_64">
+        <property name="text">
+         <string>Trials</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QLineEdit" name="motioncor_trials">
+        <property name="text">
+         <string>3</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+    <widget class="QGroupBox" name="groupBox">
+     <property name="geometry">
+      <rect>
+       <x>510</x>
+       <y>10</y>
+       <width>171</width>
+       <height>210</height>
+      </rect>
+     </property>
+     <property name="title">
+      <string>GroupBox</string>
+     </property>
+     <layout class="QFormLayout" name="formLayout_2">
+      <item row="0" column="0">
+       <widget class="QLabel" name="label_25">
+        <property name="text">
+         <string>Align</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QLineEdit" name="motioncor_Align"/>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="label_20">
+        <property name="text">
+         <string>Trunc</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QLineEdit" name="motioncor_Trunc"/>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="label_13">
+        <property name="text">
+         <string>Tol</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QLineEdit" name="motioncor_Tol"/>
+      </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="label_14">
+        <property name="text">
+         <string>Bft</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QLineEdit" name="motioncor_Bft"/>
+      </item>
+      <item row="4" column="0">
+       <widget class="QLabel" name="label_15">
+        <property name="text">
+         <string>StackZ</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="1">
+       <widget class="QLineEdit" name="motioncor_StackZ"/>
+      </item>
+      <item row="5" column="0">
+       <widget class="QLabel" name="label_29">
+        <property name="text">
+         <string>Crop</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="1">
+       <widget class="QLineEdit" name="motioncor_Crop"/>
+      </item>
+     </layout>
+    </widget>
+    <widget class="QGroupBox" name="groupBox_10">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>230</y>
+       <width>671</width>
+       <height>151</height>
+      </rect>
+     </property>
+     <property name="title">
+      <string>Additional parameters</string>
+     </property>
+     <widget class="QPlainTextEdit" name="plainTextEdit_motioncor">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>20</y>
+        <width>671</width>
+        <height>131</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <family>Nimbus Mono L</family>
+        <pointsize>11</pointsize>
+        <weight>75</weight>
+        <bold>true</bold>
+       </font>
+      </property>
+     </widget>
+    </widget>
+   </widget>
+   <widget class="QWidget" name="Gctf">
+    <attribute name="title">
+     <string>Gctf</string>
+    </attribute>
+    <widget class="QGroupBox" name="groupBox_6">
+     <property name="geometry">
+      <rect>
+       <x>180</x>
+       <y>10</y>
+       <width>151</width>
+       <height>211</height>
+      </rect>
+     </property>
+     <property name="title">
+      <string>Defocus parameters</string>
+     </property>
+     <layout class="QFormLayout" name="formLayout_5">
+      <item row="0" column="0">
+       <widget class="QLabel" name="label_34">
+        <property name="text">
+         <string>defL</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QLineEdit" name="gctf_defL"/>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="label_35">
+        <property name="text">
+         <string>defH</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QLineEdit" name="gctf_defH"/>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="label_36">
+        <property name="text">
+         <string>defS</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QLineEdit" name="gctf_defS"/>
+      </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="label_37">
+        <property name="text">
+         <string>astm</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QLineEdit" name="gctf_astm"/>
+      </item>
+     </layout>
+    </widget>
+    <widget class="QGroupBox" name="groupBox_7">
+     <property name="geometry">
+      <rect>
+       <x>510</x>
+       <y>10</y>
+       <width>171</width>
+       <height>210</height>
+      </rect>
+     </property>
+     <property name="title">
+      <string>Resolution parameters</string>
+     </property>
+     <layout class="QFormLayout" name="formLayout">
+      <item row="0" column="0">
+       <widget class="QLabel" name="label_40">
+        <property name="text">
+         <string>resL</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QLineEdit" name="gctf_resL"/>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="label_41">
+        <property name="text">
+         <string>resH</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QLineEdit" name="gctf_resH"/>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="label_49">
+        <property name="text">
+         <string>Href_bfac</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QLineEdit" name="gctf_Href_bfac"/>
+      </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="label_46">
+        <property name="text">
+         <string>do_Hres_ref</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QLineEdit" name="gctf_do_Hres_ref"/>
+      </item>
+      <item row="4" column="0">
+       <widget class="QLabel" name="label_47">
+        <property name="text">
+         <string>Href_resL</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="1">
+       <widget class="QLineEdit" name="gctf_Href_resL"/>
+      </item>
+      <item row="5" column="0">
+       <widget class="QLabel" name="label_48">
+        <property name="text">
+         <string>Href_resH</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="1">
+       <widget class="QLineEdit" name="gctf_Href_resH"/>
+      </item>
+     </layout>
+    </widget>
+    <widget class="QGroupBox" name="groupBox_5">
+     <property name="geometry">
+      <rect>
+       <x>340</x>
+       <y>10</y>
+       <width>161</width>
+       <height>211</height>
+      </rect>
+     </property>
+     <property name="title">
+      <string>Phase plate parameters</string>
+     </property>
+     <layout class="QFormLayout" name="formLayout_7">
+      <item row="0" column="0">
+       <widget class="QLabel" name="label_30">
+        <property name="text">
+         <string>phase_shift_L</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QLineEdit" name="gctf_phase_shift_L"/>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="label_31">
+        <property name="text">
+         <string>phase_shift_H</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QLineEdit" name="gctf_phase_shift_H"/>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="label_32">
+        <property name="text">
+         <string>phase_shift_S</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QLineEdit" name="gctf_phase_shift_S"/>
+      </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="label_33">
+        <property name="text">
+         <string>phase_shift_T</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QLineEdit" name="gctf_phase_shift_T"/>
+      </item>
+     </layout>
+    </widget>
+    <widget class="QGroupBox" name="groupBox_8">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>10</y>
+       <width>161</width>
+       <height>121</height>
+      </rect>
+     </property>
+     <property name="title">
+      <string>Setup</string>
+     </property>
+     <layout class="QFormLayout" name="formLayout_9">
+      <item row="0" column="0">
+       <widget class="QLabel" name="label_38">
+        <property name="text">
+         <string>Timeout</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QLineEdit" name="gctf_timeout"/>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="label_39">
+        <property name="text">
+         <string>Trials</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QLineEdit" name="gctf_trials"/>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="label_42">
+        <property name="text">
+         <string>CC Cutoff</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QLineEdit" name="gctf_cc_cutoff"/>
+      </item>
+     </layout>
+    </widget>
+    <widget class="QGroupBox" name="groupBox_9">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>230</y>
+       <width>671</width>
+       <height>151</height>
+      </rect>
+     </property>
+     <property name="title">
+      <string>Additional parameters</string>
+     </property>
+     <widget class="QPlainTextEdit" name="plainTextEdit_gctf">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>20</y>
+        <width>671</width>
+        <height>131</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <family>Nimbus Mono L</family>
+        <pointsize>11</pointsize>
+        <weight>75</weight>
+        <bold>true</bold>
+       </font>
+      </property>
+     </widget>
+    </widget>
+   </widget>
+  </widget>
+  <widget class="QPushButton" name="btn_Exit">
+   <property name="geometry">
+    <rect>
+     <x>610</x>
+     <y>440</y>
+     <width>80</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Exit</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="btn_Run">
+   <property name="geometry">
+    <rect>
+     <x>520</x>
+     <y>440</y>
+     <width>80</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Run</string>
+   </property>
+  </widget>
+  <zorder>tabWidget</zorder>
+  <zorder>btn_Exit</zorder>
+  <zorder>btn_Run</zorder>
+  <zorder>groupBox_12</zorder>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

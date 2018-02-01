@@ -277,13 +277,14 @@ class MPIApp(QtWidgets.QMainWindow):
             str_PixSize = self.ui.motioncor_PixSize.text()
             str_FmDose = self.ui.motioncor_FmDose.text()
             self.motioncor_options = {
-                'kV': float(str_kV) if str_kV!='' else self.main_defaults['kV'],
-                'PixSize': float(str_PixSize) if str_PixSize!='' else self.main_defaults['apix'],
-                'FmDose': float(str_FmDose) if str_FmDose!='' else self.main_defaults['dose_per_frame'],
+                # 'kV': float(str_kV) if str_kV!='' else self.main_defaults['kV'],
+                'kV': self.main_defaults['kV'] if str_kV=='' else float(str_kV),
+                # 'PixSize': float(str_PixSize) if str_PixSize!='' else self.main_defaults['apix'],
+                'PixSize': self.main_defaults['apix'] if str_PixSize=='' else float(str_PixSize),
+                # 'FmDose': float(str_FmDose) if str_FmDose!='' else self.main_defaults['dose_per_frame'],
+                'FmDose': self.main_defaults['dose_per_frame'] if str_FmDose=='' else float(str_FmDose),
                 'Gain': gain_reference
             }
-
-            self.logger.info(str(self.motioncor_options))
 
             # # set motioncor parameters
             # self.set_parameter(self.motioncor_defaults,'kV', self.ui.line_kV.text())
@@ -486,7 +487,7 @@ class MPIApp(QtWidgets.QMainWindow):
             self.get_input_dir()
             self.get_output_dir()
             self.get_motioncor_options()
-            self.get_gctf_options()
+            # self.get_gctf_options()
             self.ui.btn_Run.setText('Abort')
             self.ui.btn_Run.clicked.disconnect()
             self.ui.btn_Run.clicked.connect(self.abort)

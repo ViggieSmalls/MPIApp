@@ -514,9 +514,6 @@ class MPIApp(QtWidgets.QMainWindow):
 
     def accept(self):
         try:
-            #FIXME remove next two lines
-            self.ui.GPU_0.setChecked(True)
-            self.ui.line_Gain.setText('gui.py')
             self.get_GPUs()
             self.get_file_extension()
             self.get_input_dir()

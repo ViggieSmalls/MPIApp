@@ -12,6 +12,7 @@ import pandas as pd
 from queue import Queue
 from threading import Thread, Lock, Event
 from functools import partial
+import matplotlib.pyplot as plt
 
 import mrcfile
 from scipy import misc
@@ -30,14 +31,7 @@ class MPIApp(QtWidgets.QMainWindow):
         self.ui.btn_motioncor_executable.clicked.connect(self.select_motioncor_executable)
         self.ui.btn_gctf_executable.clicked.connect(self.select_gctf_executable)
 
-        # sync some lines of the Main tab with the parameters for Motioncor/Gctf
-        # self.ui.line_kV.textChanged.connect(self.sync_kV)
-        # self.ui.line_apix.textChanged.connect(self.sync_apix)
-        # self.ui.line_dose_per_frame.textChanged.connect(self.sync_dose_per_frame)
-        # self.ui.line_cs.textChanged.connect(self.sync_cs)
-        # self.ui.line_ac.textChanged.connect(self.sync_ac)
-        # self.ui.motioncor_FtBin.textChanged.connect(self.sync_FtBin)
-
+        # line values connected to each other
         self.ui.line_kV.textChanged.connect(self.sync_motioncor_kV)
         self.ui.line_kV.textChanged.connect(self.sync_gctf_kV)
         self.ui.line_apix.textChanged.connect(self.sync_motioncor_PixSize)
@@ -134,6 +128,16 @@ class MPIApp(QtWidgets.QMainWindow):
         gctf_lines = self.select_ui_elements_that_start_with('gctf_')
         for line in gctf_lines:
             line.textChanged.connect(partial(self.sync_line_edits_gctf, obj_name=line.objectName()))
+
+    def test(self):
+        m_string='-FtBin 2 -Patch 5 5 -Bft 300 -kV 300 -PixSize 0.53 -FmDose 1.0 -Throw 2'
+        self.ui.plainTextEdit_motioncor.setPlainText(m_string)
+        g_string='--apix 1.06  --kV 300 --cs 2.62 --ac 0.1 --phase_shift_L 10 --phase_shift_H 175 --phase_shift_S 10 --phase_shift_T 1 --dstep 1.06 --defL 3000 --defH 7000 --defS 500 --astm 1000 --bfac 100 --resL 20.0 --resH 3.0 --boxsize 1024 --do_EPA 1 --refine_after_EPA 0 --convsize 30 --do_Hres_ref 1 --Href_resL 15.0 --Href_resH 3.0 --Href_bfac 50 --estimate_B 1 --B_resL 20.0 --B_resH 3.0 --do_validation 1'
+        self.ui.plainTextEdit_gctf.setPlainText(g_string)
+        self.ui.line_Gain.setText('/home/viktor/Downloads/SuperRef_20S_000_Mar28_14.49.23.mrc')
+        self.ui.GPU_0.setChecked(True)
+        self.ui.GPU_1.setChecked(True)
+
 
     def sync_line_edits_motioncor(self, text, obj_name):
         param = obj_name.split('_')[1]
@@ -236,10 +240,10 @@ class MPIApp(QtWidgets.QMainWindow):
     def get_file_extension(self):
         if self.ui.radio_mrc.isChecked():
             self.file_extension = '.mrc'
-            self.motioncor_defaults['InMrc'] = '{motioncor_input}'
+            self.motioncor_options['InMrc'] = '{motioncor_input}'
         elif self.ui.radio_tif.isChecked():
             self.file_extension = '.tif'
-            self.motioncor_defaults['InTiff'] = '{motioncor_input}'
+            self.motioncor_options['InTiff'] = '{motioncor_input}'
         if not hasattr(self, 'file_extension'):
             raise ValueError('No file extension selected')
 
@@ -318,6 +322,23 @@ class MPIApp(QtWidgets.QMainWindow):
                 'Gain': gain_reference
             })
 
+            # get additional parameters in the advanced options
+            additional_parameters = self.ui.plainTextEdit_motioncor.toPlainText()
+            additional_parameters = additional_parameters.replace('\n', ' ')
+            if additional_parameters != '':
+                groups = additional_parameters.split('-')
+                # filter out empty strings from list
+                groups = list(filter(None, groups))
+                for group in groups:
+                    values = group.strip().split()
+                    try:
+                        param = values.pop(0)
+                        self.motioncor_options[param] = ' '.join(values)
+                        # if len(values) == 0 it returns ''
+                        # --> accounts for boolean option
+                    except Exception as ex:
+                        raise type(ex)("Check motioncor parameter -{}".format(group))
+
             # check parameter type against defaults
             for key,value in self.motioncor_options.items():
                 if key in self.motioncor_defaults:
@@ -332,6 +353,8 @@ class MPIApp(QtWidgets.QMainWindow):
 
                     except Exception as ex:
                         raise type(ex)("Type of {} parameter is incorrect".format(key))
+                else:
+                    self.logger.warning('Unknown motioncor parameter: {}'.format(key))
 
             # set up motioncor executable class
             motioncor_timeout = int(self.ui.motioncor_timeout.text())
@@ -362,6 +385,23 @@ class MPIApp(QtWidgets.QMainWindow):
                 'cs': self.main_defaults['cs'] if str_cs=='' else float(str_cs),
                 'ac': self.main_defaults['ac'] if str_ac=='' else float(str_ac),
             })
+
+            # get additional parameters in the advanced options
+            additional_parameters = self.ui.plainTextEdit_gctf.toPlainText()
+            additional_parameters = additional_parameters.replace('\n', ' ')
+            if additional_parameters != '':
+                groups = additional_parameters.split('--')
+                # filter out empty strings from list
+                groups = list(filter(None, groups))
+                for group in groups:
+                    values = group.strip().split()
+                    try:
+                        param = values.pop(0)
+                        self.gctf_options[param] = ' '.join(values)
+                        # if len(values) == 0 it returns ''
+                        # --> accounts for boolean option
+                    except Exception as ex:
+                        raise type(ex)("Check gctf parameter --{}".format(group))
 
             # check parameter type against defaults
             for key,value in self.gctf_options.items():
@@ -480,12 +520,22 @@ class MPIApp(QtWidgets.QMainWindow):
         if not self.process_table.empty:
             self.process_table['Defocus'] = self.process_table[["Defocus_U", "Defocus_V"]].mean(axis=1)
             self.process_table[['Defocus', 'Defocus_U', 'Defocus_V']] = self.process_table[['Defocus', 'Defocus_U', 'Defocus_V']] / 1000
-            self.process_table[['Phase_shift']] = self.process_table[['Phase_shift']] / 180
             self.process_table['delta_Defocus'] = self.process_table["Defocus_U"] - self.process_table["Defocus_V"]
+            if 'Phase_shift' in self.process_table.columns:
+                self.process_table[['Phase_shift']] = self.process_table[['Phase_shift']] / 180
+
+            self.process_table.hist('Resolution', edgecolor='black', color='green')
+            plt.xlabel('Resolution (\u212B)')
+            plt.savefig(os.path.join(self.outputDir, 'histogram_resolution.png'))
+            plt.close()
+            self.process_table.hist('Defocus', edgecolor='black', color='blue')
+            plt.xlabel('Defocus (\u03BCm)')
+            plt.savefig(os.path.join(self.outputDir, 'histogram_defocus.png'))
+            plt.close()
 
         # write to process_table.csv
         self.logger.debug('Writing data to process table csv file')
-        self.process_table.to_csv(csv_file, index_label='micrograph')
+        self.process_table.set_index('micrograph').to_csv(csv_file)
 
         # write to micrographs_all_gctf.star
         if not self.process_table.empty:
@@ -514,6 +564,7 @@ class MPIApp(QtWidgets.QMainWindow):
 
     def accept(self):
         try:
+            self.test()
             self.get_GPUs()
             self.get_file_extension()
             self.get_input_dir()
@@ -650,10 +701,10 @@ class Gctf:
                 out, err = process.communicate()
 
                 if err:
-                    self.logger.warning('Gctf for micrograph {} did not finish successfully. (trial {})\n'.format(micrograph.basename,i+1))
+                    self.logger.warning('Gctf for micrograph {} did not finish successfully. (trial {})'.format(micrograph.basename,i+1))
 
                 else:
-                    self.logger.info('Gctf for micrograph {} was executed successfully. (trial {})\n'.format(micrograph.basename,i+1))
+                    self.logger.info('Gctf for micrograph {} was executed successfully. (trial {})'.format(micrograph.basename,i+1))
 
                     micrograph.files['gctf_ctf_fit'] = os.path.splitext(gctf_input)[0] + '.ctf'
                     micrograph.files['gctf_log'] = os.path.splitext(gctf_input)[0] + '_gctf.log'
@@ -664,14 +715,28 @@ class Gctf:
                         gctf_log.write(log)
 
                     # find out the results of the last iteration
+                    values = []
+                    keys = []
                     for line in reversed(log.split('\n')):
-                        if line.endswith('Final Values'):
-                            data = np.array(line.split()[:-2]).astype(float)
-                            #FIXME: what if gctf does not correct with phase shift?
-                            keys = ['Defocus_U', 'Defocus_V', 'Angle', 'Phase_shift', 'CCC']
-                            results.update(dict(zip(keys, list(data))))
-                            del results['CCC']  # we don't need this column
+                        # if final values not found yet:
+                        if not bool(values):
+                            if line.endswith('Final Values'):
+                                # values as a string list
+                                values = line.split()
+                                # exclude 'Final' and 'Values' from list
+                                values = values[:-2]
+                                # convert to list of float
+                                values = list(map(float, values))
+                            else:
+                                continue
+
+                        # now we found the values,
+                        # next line bust be the keys
+                        elif bool(values):
+                            keys = line.split()
                             break
+
+                    results.update(dict(zip(keys, values)))
 
                     # Read the epa.log file into a DataFrame
                     # FIXME: first row misses!
@@ -684,6 +749,7 @@ class Gctf:
                     index = epa_df.CCC.lt(self.cc_cutoff).idxmax()
                     res = epa_df.iloc[index]['Resolution']
                     results['Resolution'] = res
+                    del results['CCC']  # we don't need this column anymore
 
                     # Read contents of the gctf star file
                     # FIXME: columns have the form '_rlnMicrographName #1', '_rlnCtfImage #2' .. KEEP IT!
@@ -717,7 +783,7 @@ class Gctf:
                     return
 
             except subprocess.TimeoutExpired:
-                self.logger.warning('Timeout of {} s expired for gctf on micrograph {}. (trial {})\n'.format(self.timeout,micrograph.basename,i+1))
+                self.logger.warning('Timeout of {} s expired for gctf on micrograph {}. (trial {})'.format(self.timeout,micrograph.basename,i+1))
                 continue
 
         self.logger.error('Could not process gctf for micrograph {}'.format(micrograph.basename))
@@ -767,11 +833,12 @@ class Motioncor:
                 out, err = process.communicate()
 
                 if err:
-                    self.logger.warning('Motioncor for micrograph {} did not finish successfully. (trial {})\n'.format(micrograph.basename,i+1))
+                    self.logger.warning('Motioncor for micrograph {name} did not finish successfully. (trial {i})\n'
+                                        '{err}'.format(name = micrograph.basename,i=i+1,err=err.decode('utf-8')))
                     continue
 
                 else:
-                    self.logger.info('Motioncor for micrograph {} was executed successfully. (trial {})\n'.format(micrograph.basename,i+1))
+                    self.logger.info('Motioncor for micrograph {} was executed successfully. (trial {})'.format(micrograph.basename,i+1))
 
                     micrograph.files['motioncor_aligned_DW'] = os.path.splitext(micrograph.abspath)[0] + '_DW.mrc'
                     micrograph.files['motioncor_aligned_no_DW'] = os.path.splitext(micrograph.abspath)[0] + '.mrc'
@@ -799,7 +866,7 @@ class Motioncor:
                     return
 
             except subprocess.TimeoutExpired:
-                self.logger.warning('Timeout of {} s expired for motioncor on micrograph {}. (trial {})\n'.format(self.timeout,micrograph.basename,i+1))
+                self.logger.warning('Timeout of {} s expired for motioncor on micrograph {}. (trial {})'.format(self.timeout,micrograph.basename,i+1))
                 continue
 
         self.logger.error("No motioncor results could be generated for micrograph {}".format(micrograph.basename))
@@ -815,7 +882,7 @@ class Micrograph:
             'raw': self.abspath,
             'motioncor_input': self.abspath,
         }
-        self.data = pd.Series(name=self.id)
+        self.data = pd.Series(name=self.id, data={'micrograph': self.basename})
         self.logger = logger
 
     def add_data(self, dictionary):

@@ -31,12 +31,21 @@ class MPIApp(QtWidgets.QMainWindow):
         self.ui.btn_gctf_executable.clicked.connect(self.select_gctf_executable)
 
         # sync some lines of the Main tab with the parameters for Motioncor/Gctf
-        self.ui.line_kV.textChanged.connect(self.sync_kV)
-        self.ui.line_apix.textChanged.connect(self.sync_apix)
-        self.ui.line_dose_per_frame.textChanged.connect(self.sync_dose_per_frame)
-        self.ui.line_cs.textChanged.connect(self.sync_cs)
-        self.ui.line_ac.textChanged.connect(self.sync_ac)
-        self.ui.motioncor_FtBin.textChanged.connect(self.sync_FtBin)
+        # self.ui.line_kV.textChanged.connect(self.sync_kV)
+        # self.ui.line_apix.textChanged.connect(self.sync_apix)
+        # self.ui.line_dose_per_frame.textChanged.connect(self.sync_dose_per_frame)
+        # self.ui.line_cs.textChanged.connect(self.sync_cs)
+        # self.ui.line_ac.textChanged.connect(self.sync_ac)
+        # self.ui.motioncor_FtBin.textChanged.connect(self.sync_FtBin)
+
+        self.ui.line_kV.textChanged.connect(self.sync_motioncor_kV)
+        self.ui.line_kV.textChanged.connect(self.sync_gctf_kV)
+        self.ui.line_apix.textChanged.connect(self.sync_motioncor_PixSize)
+        self.ui.line_apix.textChanged.connect(self.sync_gctf_apix)
+        self.ui.line_dose_per_frame.textChanged.connect(self.sync_motioncor_FmDose)
+        self.ui.line_cs.textChanged.connect(self.sync_gctf_cs)
+        self.ui.line_ac.textChanged.connect(self.sync_gctf_ac)
+        self.ui.motioncor_FtBin.textChanged.connect(self.sync_FtBin_changes_gctf_apix)
 
         # defaults for placeholder text
         self.main_defaults = {
@@ -114,12 +123,13 @@ class MPIApp(QtWidgets.QMainWindow):
         self.process_table_lock = Lock()
         self.logger = logging.getLogger(__name__)
 
-
+        # update motioncor options if lines are edited
         self.motioncor_options = {}
         motioncor_lines = self.select_ui_elements_that_start_with('motioncor_')
         for line in motioncor_lines:
             line.textChanged.connect(partial(self.sync_line_edits_motioncor, obj_name=line.objectName()))
 
+        # update gctf options if lines are edited
         self.gctf_options = {}
         gctf_lines = self.select_ui_elements_that_start_with('gctf_')
         for line in gctf_lines:
@@ -127,41 +137,57 @@ class MPIApp(QtWidgets.QMainWindow):
 
     def sync_line_edits_motioncor(self, text, obj_name):
         param = obj_name.split('_')[1]
-        self.motioncor_options[param] = text
-
+        if text == '':
+            del self.motioncor_options[param]
+        else:
+            self.motioncor_options[param] = text
 
     def sync_line_edits_gctf(self, text, obj_name):
-        print(text, obj_name)
+        param = obj_name.split('_')[1]
+        if text == '':
+            del self.gctf_options[param]
+        else:
+            self.gctf_options[param] = text
 
-    def sync_kV(self, text):
+    def sync_motioncor_kV(self, text):
         self.ui.motioncor_kV.setText(text)
+
+    def sync_gctf_kV(self, text):
         self.ui.gctf_kV.setText(text)
 
-    def sync_apix(self, text):
+    def sync_motioncor_PixSize(self, text):
         self.ui.motioncor_PixSize.setText(text)
+
+    def sync_gctf_apix(self, text):
+        """
+        This function changes the text in the gctf_apix line whenever line_apix is edited
+        """
         try:
             str_ftbin = self.ui.motioncor_FtBin.text()
-            ftbin = 1. if str_ftbin=='' else float(str_ftbin)
-            apix = ftbin * float(text)
-            self.ui.gctf_apix.setText(str(apix))
+            ftbin = self.motioncor_defaults['FtBin'] if str_ftbin=='' else float(str_ftbin)
+            apix = self.gctf_defaults['apix'] if text=='' else float(text)
+            new_apix = ftbin * apix
+            self.ui.gctf_apix.setText(str(new_apix))
         except:
-            pass # catch exception if input values are not float. It will be checked later
+            self.ui.gctf_apix.setText(text) #catch exception later
 
-    def sync_FtBin(self, text):
+    def sync_FtBin_changes_gctf_apix(self, text):
         try:
-            ftbin = float(text)
-            apix = ftbin * float(self.ui.line_apix.text())
-            self.ui.gctf_apix.setText(str(apix))
+            ftbin = self.motioncor_defaults['FtBin'] if text=='' else float(text)
+            str_apix = self.ui.line_apix.text()
+            apix = self.gctf_defaults['apix'] if str_apix=='' else float(str_apix)
+            new_gctf_apix = ftbin * float(apix)
+            self.ui.gctf_apix.setText(str(new_gctf_apix))
         except:
-            pass # catch exception if input values are not float. It will be checked later
+            pass
 
-    def sync_dose_per_frame(self, text):
+    def sync_motioncor_FmDose(self, text):
         self.ui.motioncor_FmDose.setText(text)
 
-    def sync_cs(self, text):
+    def sync_gctf_cs(self, text):
         self.ui.gctf_cs.setText(text)
 
-    def sync_ac(self, text):
+    def sync_gctf_ac(self, text):
         self.ui.gctf_ac.setText(text)
 
     def select_input_directory(self):
@@ -277,8 +303,6 @@ class MPIApp(QtWidgets.QMainWindow):
             except:
                 pass # there is no such line attribute
 
-
-
     def get_motioncor_options(self):
 
         try:
@@ -294,17 +318,7 @@ class MPIApp(QtWidgets.QMainWindow):
                 'Gain': gain_reference
             })
 
-            # param_type = type(self.motioncor_defaults[param])
-            # try:
-            #     if param_type == tuple:
-            #         type_item = type(self.motioncor_defaults[param][0])
-            #         self.motioncor_options[param] = tuple(map(type_item, text.split()))
-            #     else:
-            #         self.motioncor_options[param] = param_type(text)
-            # except ValueError:
-            #     # catch type errors later
-            #     self.motioncor_options[param] = text
-
+            # check parameter type against defaults
             for key,value in self.motioncor_options.items():
                 if key in self.motioncor_defaults:
                     try:
@@ -312,22 +326,12 @@ class MPIApp(QtWidgets.QMainWindow):
                         if default_type == tuple:
                             default_item_type = type(self.motioncor_defaults[key][0])
                             self.motioncor_options[key] = tuple(map(default_item_type, value.split()))
-                            assert len(self.motioncor_options[key]) == len(self.motioncor_defaults[key]), \
-                                "The number of {} parameters does not match the default".format(key)
+                            assert len(self.motioncor_options[key]) == len(self.motioncor_defaults[key])
                         else:
                             self.motioncor_options[key] = default_type(self.motioncor_options[key])
 
                     except Exception as ex:
                         raise type(ex)("Type of {} parameter is incorrect".format(key))
-
-            print(self.motioncor_options)
-            # # set motioncor parameters
-            # self.set_parameter(self.motioncor_defaults,'kV', self.ui.line_kV.text())
-            # self.set_parameter(self.motioncor_defaults,'PixSize', self.ui.line_apix.text())
-            # self.set_parameter(self.motioncor_defaults,'FmDose', self.ui.line_dose_per_frame.text())
-            # gain_reference = self.ui.line_Gain.text()
-            # assert os.path.isfile(gain_reference), "Select a Gain reference"
-            # self.motioncor_defaults['Gain'] = gain_reference
 
             # set up motioncor executable class
             motioncor_timeout = int(self.ui.motioncor_timeout.text())
@@ -336,45 +340,15 @@ class MPIApp(QtWidgets.QMainWindow):
             # set motioncor exectutable to motioncor, if not selected
             if not hasattr(self, 'motioncor_executable'):
                 self.motioncor_executable = 'motioncor'
-            # assert shutil.which(self.motioncor_executable), "Select a motioncor executable"
+            assert shutil.which(self.motioncor_executable), "Select a motioncor executable"
 
             self.motioncor = Motioncor(motioncor_timeout, motioncor_trials, self.logger, self.motioncor_options,
                                   self.outputDir, self.motioncor_executable)
+            print(self.motioncor_options)
         except Exception as ex:
             raise ex
 
     def get_gctf_options(self):
-        my_options = {
-            'kV': 300,
-            'apix': 1.0,
-            'cs': 2.62,
-            'ac': 0.1,
-            'Href_bfac': 50.0,
-            'boxsize': 1024.0,
-            'do_validation': 1.0,
-            'phase_shift_L': 10.0,
-            'defS': 500.0,
-            'phase_shift_S': 10.0,
-            'resH': 3.0,
-            'defL': 3000.0,
-            'B_resL': 20.0,
-            'do_Hres_ref': 1,
-            'estimate_B': 1,
-            'do_EPA': 1,
-            'phase_shift_H': 175.0,
-            'phase_shift_T': 1.0,
-            'B_resH': 3.0,
-            'defH': 7000.0,
-            'astm': 1000.0,
-            'bfac': 100.0,
-            'dstep': 1.06,
-            'Href_resH': 3.0,
-            'Href_resL': 15.0,
-            'refine_after_EPA': 0,
-            'resL': 20.0,
-            'convsize': 30.0
-        }
-
 
         try:
             str_kV = self.ui.gctf_kV.text()
@@ -382,18 +356,27 @@ class MPIApp(QtWidgets.QMainWindow):
             str_cs = self.ui.gctf_cs.text()
             str_ac = self.ui.gctf_ac.text()
 
-            self.gctf_defaults.update({
+            self.gctf_options.update({
                 'kV': self.main_defaults['kV'] if str_kV=='' else float(str_kV),
                 'apix': self.main_defaults['apix'] if str_apix=='' else float(str_apix),
                 'cs': self.main_defaults['cs'] if str_cs=='' else float(str_cs),
                 'ac': self.main_defaults['ac'] if str_ac=='' else float(str_ac),
             })
 
-            # set gctf parameters
-            self.set_parameter(self.gctf_defaults, 'kV', self.ui.line_kV.text())
-            self.set_parameter(self.gctf_defaults, 'apix', self.ui.line_apix.text())
-            self.set_parameter(self.gctf_defaults, 'cs', self.ui.line_cs.text())
-            self.set_parameter(self.gctf_defaults, 'ac', self.ui.line_ac.text())
+            # check parameter type against defaults
+            for key,value in self.gctf_options.items():
+                if key in self.gctf_defaults:
+                    try:
+                        default_type = type(self.gctf_defaults[key])
+                        if default_type == tuple:
+                            default_item_type = type(self.gctf_defaults[key][0])
+                            self.gctf_options[key] = tuple(map(default_item_type, value.split()))
+                            assert len(self.gctf_options[key]) == len(self.gctf_defaults[key])
+                        else:
+                            self.gctf_options[key] = default_type(self.gctf_options[key])
+
+                    except Exception as ex:
+                        raise type(ex)("Type of {} parameter is incorrect".format(key))
 
             # set up gctf executable class
             gctf_timeout = int(self.ui.gctf_timeout.text())
@@ -403,8 +386,10 @@ class MPIApp(QtWidgets.QMainWindow):
                 self.gctf_executable = 'gctf'
             assert shutil.which(self.gctf_executable), "Select a gctf executable"
 
-            #TODO change my options
-            self.gctf = Gctf(gctf_timeout, gctf_trials, self.logger, my_options, self.outputDir, gctf_cc_cutoff, self.gctf_executable)
+            self.gctf = Gctf(gctf_timeout, gctf_trials, self.logger, self.gctf_options, self.outputDir, gctf_cc_cutoff, self.gctf_executable)
+
+            print(self.gctf_options)
+
         except Exception as ex:
             raise ex
 
@@ -529,12 +514,15 @@ class MPIApp(QtWidgets.QMainWindow):
 
     def accept(self):
         try:
+            #FIXME remove next two lines
+            self.ui.GPU_0.setChecked(True)
+            self.ui.line_Gain.setText('gui.py')
             self.get_GPUs()
             self.get_file_extension()
             self.get_input_dir()
             self.get_output_dir()
             self.get_motioncor_options()
-            # self.get_gctf_options()
+            self.get_gctf_options()
             self.ui.btn_Run.setText('Abort')
             self.ui.btn_Run.clicked.disconnect()
             self.ui.btn_Run.clicked.connect(self.abort)
@@ -543,7 +531,7 @@ class MPIApp(QtWidgets.QMainWindow):
                 obj.setEnabled(False)
             self.run()
         except Exception as ex:
-            QtWidgets.QMessageBox.about(self, 'ERROR',str(ex))
+            QtWidgets.QMessageBox.about(self, 'ERROR', str(ex))
 
     def run(self):
         self.start_logging()

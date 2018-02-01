@@ -518,12 +518,14 @@ class MPIApp(QtWidgets.QMainWindow):
 
         # create some additional columns for the web page
         if not self.process_table.empty:
-            self.process_table['Defocus'] = self.process_table[["Defocus_U", "Defocus_V"]].mean(axis=1)
-            self.process_table[['Defocus', 'Defocus_U', 'Defocus_V']] = self.process_table[['Defocus', 'Defocus_U', 'Defocus_V']] / 1000
-            self.process_table['delta_Defocus'] = self.process_table["Defocus_U"] - self.process_table["Defocus_V"]
-            if 'Phase_shift' in self.process_table.columns:
-                self.process_table[['Phase_shift']] = self.process_table[['Phase_shift']] / 180
+            # df[['Defocus', 'Defocus_U', 'Defocus_V']] = self.process_table[['Defocus', 'Defocus_U', 'Defocus_V']] / 1000
+            # self.process_table['Defocus'] = self.process_table[["Defocus_U", "Defocus_V"]].mean(axis=1)
+            # self.process_table[['Defocus', 'Defocus_U', 'Defocus_V']] = self.process_table[['Defocus', 'Defocus_U', 'Defocus_V']] / 1000
+            # self.process_table['delta_Defocus'] = self.process_table["Defocus_U"] - self.process_table["Defocus_V"]
+            # if 'Phase_shift' in self.process_table.columns:
+            #     self.process_table[['Phase_shift']] = self.process_table[['Phase_shift']] / 180
 
+            # create histograms
             self.process_table.hist('Resolution', edgecolor='black', color='green')
             plt.xlabel('Resolution (\u212B)')
             plt.savefig(os.path.join(self.outputDir, 'histogram_resolution.png'))
@@ -533,12 +535,11 @@ class MPIApp(QtWidgets.QMainWindow):
             plt.savefig(os.path.join(self.outputDir, 'histogram_defocus.png'))
             plt.close()
 
-        # write to process_table.csv
-        self.logger.debug('Writing data to process table csv file')
-        self.process_table.set_index('micrograph').to_csv(csv_file)
+            # write to process_table.csv
+            self.logger.debug('Writing data to process table csv file')
+            self.process_table.set_index('micrograph').sort_index().to_csv(csv_file)
 
-        # write to micrographs_all_gctf.star
-        if not self.process_table.empty:
+            ### write star file
 
             # get star file header values
             # TODO: try to make this easier, like sort columns and then write to file
@@ -737,6 +738,11 @@ class Gctf:
                             break
 
                     results.update(dict(zip(keys, values)))
+                    results['Defocus'] = (results['Defocus_U'] + results['Defocus_V']) / 2 / 10000
+                    results['delta_Defocus'] = (results['Defocus_U'] - results['Defocus_V']) / 10000
+                    if 'Phase_shift' in results:
+                        results['Phase_shift'] = results['Phase_shift'] / 180
+                    print(results)
 
                     # Read the epa.log file into a DataFrame
                     # FIXME: first row misses!

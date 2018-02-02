@@ -7,6 +7,8 @@
     "ac": 0.1
   },
   "Motioncor": {
+    "timeout": 300.0,
+    "trials": 3,
     "Serial": 0,
     "MaskCent": [0.0000, 0.0000],
     "MaskSize": [1.0000, 1.0000],
@@ -19,7 +21,7 @@
     "InitDose": 0.0000,
     "FmDose": 1.000,
     "PixSize": 1.000,
-    "kV": 300,
+    "kV": 300.0,
     "Throw": 0,
     "Trunc": 0,
     "Group": 1,
@@ -34,6 +36,9 @@
     "Gpu": 0
   },
   "Gctf": {
+    "timeout": 300.0,
+    "trials": 3,
+    "cc_cutoff": 0.75,
     "apix": 1.000,
     "kV": 300.0,
     "ac": 0.1,
@@ -85,6 +90,8 @@
     "do_Hres_ref": 0,
     "defU_err": 500.0,
     "do_phase_flip": 0.0,
-    "defV_err": 500.0
+    "defV_err": 500.0,
+    "estimate_B": 1,
+    "refine_after_EPA": 0
   }
 }

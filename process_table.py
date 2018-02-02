@@ -14,18 +14,16 @@ from skimage import exposure
 def crop_image(input_mrc, output_dir, equalize_hist=False):
     logging.captureWarnings(True)
 
-    with mrcfile.mmap(input_mrc, mode='r+', permissive=True) as mrc:
+    with mrcfile.open(input_mrc, mode='r+', permissive=True) as mrc:
         mrc.header.map = mrcfile.constants.MAP_ID  # output .mrc files from motioncor need this correction
         mrc.update_header_from_data()
+        image_ary = np.squeeze(mrc.data)  # remove single-dimensional entries
+        if equalize_hist == True:
+            image_ary = exposure.equalize_hist(image_ary)
+        base = os.path.splitext(os.path.basename(input_mrc))[0]
+        output_image = os.path.join(output_dir, base + '.png')
+        misc.imsave(output_image, image_ary)
 
-    mrc = mrcfile.open(input_mrc)
-    image_ary = np.squeeze(mrc.data)  # remove single-dimensional entries
-    if equalize_hist == True:
-        image_ary = exposure.equalize_hist(image_ary)
-    base = os.path.splitext(os.path.basename(input_mrc))[0]
-    output_image = os.path.join(output_dir, base + '.png')
-    misc.imsave(output_image, image_ary)
-    pass
 
 class ProcessTable:
 

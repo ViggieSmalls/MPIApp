@@ -8,6 +8,8 @@
     "ac": 0.1
   },
   "Motioncor": {
+    "trials": 3,
+    "timeout": 300,
     "FtBin": 2,
     "Patch": [5,5],
     "Bft": 300,
@@ -34,7 +36,7 @@
     "do_Hres_ref": 1,
     "Href_resL": 15.0,
     "Href_resH": 3.0,
-    "Href_bfac": 50,
+    "Href_bfac": 50.0,
     "estimate_B": 1,
     "B_resL": 20.0,
     "B_resH": 3.0,

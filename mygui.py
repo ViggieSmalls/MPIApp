@@ -67,50 +67,26 @@ class MPIApp(QtWidgets.QMainWindow):
             os.mkdir(self.config_dir)
         files = os.listdir(self.config_dir)
         files.sort(reverse=True) # latest first
-        for n, filename in enumerate(files):
+        for n, filename in enumerate(files[:5]):
             obj_name = 'file_' + str(n)
-            setattr(self.ui, obj_name, QtWidgets.QAction(self))
-            action = getattr(self.ui, obj_name)
+            setattr(self.ui.menuLatest_configurations, obj_name, QtWidgets.QAction(self))
+            action = getattr(self.ui.menuLatest_configurations, obj_name)
             action.setText(filename)
             self.ui.menuLatest_configurations.addAction(action)
             action.triggered.connect(partial(self.load_configurations, filename=os.path.join(self.config_dir, filename)))
 
-            if n>5:
-                self.ui.menuLatest_configurations.addSeparator()
-                text = 'Show all...'
-                setattr(self.ui, 'actionShow_all', QtWidgets.QAction(self))
-                action = getattr(self.ui, 'actionShow_all')
-                action.setText(text)
-                action.triggered.connect(partial(self.select_configuration_file, directory=self.config_dir))
+        # if there are more than 5 options show something else
+        #FIXME: this doesn't work???
+        self.ui.menuLatest_configurations.addSeparator()
+        text = 'Show all...'
+        setattr(self.ui.menuLatest_configurations, 'actionShow_all', QtWidgets.QAction(self))
+        action_show_all = getattr(self.ui.menuLatest_configurations, 'actionShow_all')
+        action_show_all.setObjectName('actionShow_all')
+        action_show_all.setText(text)
+        action_show_all.triggered.connect(partial(self.select_configuration_file, directory=self.config_dir))
 
-
-
-
-        # update motioncor options if lines are edited
         self.motioncor_options = {}
-        motioncor_lines = self.select_ui_elements_that_start_with('motioncor_')
-        for line in motioncor_lines:
-            line.textChanged.connect(partial(self.sync_line_edits_motioncor, obj_name=line.objectName()))
-
-        # update gctf options if lines are edited
         self.gctf_options = {}
-        gctf_lines = self.select_ui_elements_that_start_with('gctf_')
-        for line in gctf_lines:
-            line.textChanged.connect(partial(self.sync_line_edits_gctf, obj_name=line.objectName()))
-
-    def sync_line_edits_motioncor(self, text, obj_name):
-        param = obj_name.split('_')[1]
-        if text == '':
-            del self.motioncor_options[param]
-        else:
-            self.motioncor_options[param] = text
-
-    def sync_line_edits_gctf(self, text, obj_name):
-        param = obj_name.split('_')[1]
-        if text == '':
-            del self.gctf_options[param]
-        else:
-            self.gctf_options[param] = text
 
     def sync_motioncor_kV(self, text):
         self.ui.motioncor_kV.setText(text)
@@ -337,21 +313,14 @@ class MPIApp(QtWidgets.QMainWindow):
     def get_motioncor_options(self):
 
         try:
-            gain_reference = self.ui.line_Gain.text()
-            assert os.path.isfile(gain_reference), "Select a Gain reference"
-            str_kV = self.ui.motioncor_kV.text()
-            str_PixSize = self.ui.motioncor_PixSize.text()
-            str_FmDose = self.ui.motioncor_FmDose.text()
-            self.motioncor_options.update({
-                # defaults are either loaded from the main configuration file
-                # or if you specify your own configuration file,
-                # the text will be set to that values and lineEdits are
-                # updated automatically
-                'kV': self.main_defaults['kV'] if str_kV=='' else float(str_kV),
-                'PixSize': self.main_defaults['apix'] if str_PixSize=='' else float(str_PixSize),
-                'FmDose': self.main_defaults['dose_per_frame'] if str_FmDose=='' else float(str_FmDose),
-                'Gain': gain_reference
-            })
+            # get all line entries
+            motioncor_lines = self.select_ui_elements_that_start_with('motioncor_')
+            self.motioncor_options = {}
+            for line in motioncor_lines:
+                param = line.objectName().split('_')[1]
+                value = line.text()
+                if value != '':
+                    self.motioncor_options[param] = value
 
             # get additional parameters in the advanced options
             additional_parameters = self.ui.plainTextEdit_motioncor.toPlainText()
@@ -361,17 +330,17 @@ class MPIApp(QtWidgets.QMainWindow):
                 # filter out empty strings from list
                 groups = list(filter(None, groups))
                 for group in groups:
-                    values = group.strip().split()
+                    group = group.strip()
+                    idx_first_space = group.index(' ')
                     try:
-                        param = values.pop(0)
-                        self.motioncor_options[param] = ' '.join(values)
-                        # if len(values) == 0 it returns ''
-                        # --> accounts for boolean option
+                        param = group[:idx_first_space]
+                        value = group[idx_first_space:]
+                        self.motioncor_options[param] = value
                     except Exception as ex:
                         raise type(ex)("Check motioncor parameter -{}".format(group))
 
-            # check parameter type against defaults
-            for key,value in self.motioncor_options.items():
+            # convert to default type
+            for key, value in self.motioncor_options.items():
                 if key in self.motioncor_defaults:
                     try:
                         default_type = type(self.motioncor_defaults[key])
@@ -387,55 +356,61 @@ class MPIApp(QtWidgets.QMainWindow):
                 else:
                     self.logger.warning('Unknown motioncor parameter: {}'.format(key))
 
-            # set up motioncor executable class
-            motioncor_timeout = int(self.ui.motioncor_timeout.text())
-            motioncor_trials = int(self.ui.motioncor_trials.text())
+            # check for essential motioncor parameters
+            essential_keys = ['timeout', 'trials', 'kV', 'PixSize', 'FmDose', 'Gain']
+            for key in essential_keys:
+                if key == 'Gain':
+                    gain_reference = self.ui.line_Gain.text()
+                    assert os.path.isfile(gain_reference), "Select a Gain reference"
+                    self.motioncor_options['Gain'] = gain_reference
+                if key not in self.motioncor_options:
+                    self.motioncor_options[key] = self.motioncor_defaults[key]
+
+            self.get_file_extension()
 
             # set motioncor exectutable to motioncor, if not selected
             if not hasattr(self, 'motioncor_executable'):
                 self.motioncor_executable = 'motioncor'
             assert shutil.which(self.motioncor_executable), "Select a motioncor executable"
 
-            self.motioncor = Motioncor(motioncor_timeout, motioncor_trials, self.logger, self.motioncor_options,
+            self.motioncor = Motioncor(self.logger, self.motioncor_options,
                                   self.outputDir, self.motioncor_executable)
             print(self.motioncor_options)
+
         except Exception as ex:
             raise ex
 
     def get_gctf_options(self):
 
         try:
-            str_kV = self.ui.gctf_kV.text()
-            str_apix = self.ui.gctf_apix.text()
-            str_cs = self.ui.gctf_cs.text()
-            str_ac = self.ui.gctf_ac.text()
-
-            self.gctf_options.update({
-                'kV': self.main_defaults['kV'] if str_kV=='' else float(str_kV),
-                'apix': self.main_defaults['apix'] if str_apix=='' else float(str_apix),
-                'cs': self.main_defaults['cs'] if str_cs=='' else float(str_cs),
-                'ac': self.main_defaults['ac'] if str_ac=='' else float(str_ac),
-            })
+            gctf_lines = self.select_ui_elements_that_start_with('gctf_')
+            self.gctf_options = {}
+            for line in gctf_lines:
+                param = line.objectName().split('_')[1]
+                value = line.text()
+                if value != '':
+                    self.gctf_options[param] = value
 
             # get additional parameters in the advanced options
             additional_parameters = self.ui.plainTextEdit_gctf.toPlainText()
+            print(additional_parameters)
             additional_parameters = additional_parameters.replace('\n', ' ')
             if additional_parameters != '':
-                groups = additional_parameters.split('--')
+                groups = additional_parameters.split('-')
                 # filter out empty strings from list
                 groups = list(filter(None, groups))
                 for group in groups:
-                    values = group.strip().split()
+                    group = group.strip()
+                    idx_first_space = group.index(' ')
                     try:
-                        param = values.pop(0)
-                        self.gctf_options[param] = ' '.join(values)
-                        # if len(values) == 0 it returns ''
-                        # --> accounts for boolean option
+                        param = group[:idx_first_space]
+                        value = group[idx_first_space:]
+                        self.gctf_options[param] = value
                     except Exception as ex:
                         raise type(ex)("Check gctf parameter --{}".format(group))
 
-            # check parameter type against defaults
-            for key,value in self.gctf_options.items():
+            # convert to default type
+            for key, value in self.gctf_options.items():
                 if key in self.gctf_defaults:
                     try:
                         default_type = type(self.gctf_defaults[key])
@@ -448,18 +423,77 @@ class MPIApp(QtWidgets.QMainWindow):
 
                     except Exception as ex:
                         raise type(ex)("Type of {} parameter is incorrect".format(key))
+                else:
+                    self.logger.warning('Unknown gctf parameter: {}'.format(key))
 
-            # set up gctf executable class
-            gctf_timeout = int(self.ui.gctf_timeout.text())
-            gctf_trials = int(self.ui.gctf_trials.text())
-            gctf_cc_cutoff = float(self.ui.gctf_cc_cutoff.text())
-            if not hasattr(self, 'gctf_executable'):
-                self.gctf_executable = 'gctf'
-            assert shutil.which(self.gctf_executable), "Select a gctf executable"
-
-            self.gctf = Gctf(gctf_timeout, gctf_trials, self.logger, self.gctf_options, self.outputDir, gctf_cc_cutoff, self.gctf_executable)
+            # check for essential gctf parameters
+            essential_keys = ['timeout', 'trials', 'cc_cutoff', 'apix', 'kV', 'ac', 'cs']
+            for key in essential_keys:
+                if key not in self.gctf_options:
+                    self.gctf_options[key] = self.gctf_defaults[key]
 
             print(self.gctf_options)
+
+            # str_kV = self.ui.gctf_kV.text()
+            # str_apix = self.ui.gctf_apix.text()
+            # str_cs = self.ui.gctf_cs.text()
+            # str_ac = self.ui.gctf_ac.text()
+            # str_timeout = self.ui.gctf_timeout.text()
+            # str_trials = self.ui.gctf_trials.text()
+            # str_cc_cutoff = self.ui.gctf_cc_cutoff.text()
+            #
+            # self.gctf_options.update({
+            #     'timeout': self.gctf_defaults['timeout'] if str_timeout=='' else float(str_timeout),
+            #     'trials': self.gctf_defaults['trials'] if str_trials=='' else int(str_trials),
+            #     'cc_cutoff': self.gctf_defaults['cc_cutoff'] if str_cc_cutoff=='' else int(str_cc_cutoff),
+            #     'kV': self.main_defaults['kV'] if str_kV=='' else float(str_kV),
+            #     'apix': self.main_defaults['apix'] if str_apix=='' else float(str_apix),
+            #     'cs': self.main_defaults['cs'] if str_cs=='' else float(str_cs),
+            #     'ac': self.main_defaults['ac'] if str_ac=='' else float(str_ac),
+            # })
+            #
+            # # get additional parameters in the advanced options
+            # additional_parameters = self.ui.plainTextEdit_gctf.toPlainText()
+            # additional_parameters = additional_parameters.replace('\n', ' ')
+            # if additional_parameters != '':
+            #     groups = additional_parameters.split('--')
+            #     # filter out empty strings from list
+            #     groups = list(filter(None, groups))
+            #     for group in groups:
+            #         values = group.strip().split()
+            #         try:
+            #             param = values.pop(0)
+            #             self.gctf_options[param] = ' '.join(values)
+            #             # if len(values) == 0 it returns ''
+            #             # --> accounts for boolean option
+            #         except Exception as ex:
+            #             raise type(ex)("Check gctf parameter --{}".format(group))
+            #
+            # # check parameter type against defaults
+            # for key,value in self.gctf_options.items():
+            #     if key in self.gctf_defaults:
+            #         try:
+            #             default_type = type(self.gctf_defaults[key])
+            #             if default_type == list:
+            #                 default_item_type = type(self.gctf_defaults[key][0])
+            #                 self.gctf_options[key] = list(map(default_item_type, value.split()))
+            #                 assert len(self.gctf_options[key]) == len(self.gctf_defaults[key])
+            #             else:
+            #                 self.gctf_options[key] = default_type(self.gctf_options[key])
+            #
+            #         except Exception as ex:
+            #             raise type(ex)("Type of {} parameter is incorrect".format(key))
+            #     else:
+            #         print(key,value)
+            #
+            # # check gctf executable
+            # if not hasattr(self, 'gctf_executable'):
+            #     self.gctf_executable = 'gctf'
+            # assert shutil.which(self.gctf_executable), "Select a gctf executable"
+            #
+            # self.gctf = Gctf(self.logger, self.gctf_options, self.outputDir, self.gctf_executable)
+            #
+            # print(self.gctf_options)
 
         except Exception as ex:
             raise ex
@@ -481,7 +515,6 @@ class MPIApp(QtWidgets.QMainWindow):
         self.process_table = pd.DataFrame()
         self.process_table_lock = Lock()
         self.queue = Queue()
-        self.stop_event = Event()
 
     def start_event_notifier(self):
         """
@@ -608,8 +641,8 @@ class MPIApp(QtWidgets.QMainWindow):
             QtWidgets.QMessageBox.about(self, 'ERROR', str(ex))
 
     def run(self):
-        # reset the stop event to False in case we did an abort before
-        self.stop_event.clear()
+        # reset the stop event in case we did an abort before
+        self.stop_event = Event()
         self.save_configurations()
 
         # start everything
@@ -693,12 +726,9 @@ class EventHandler(pyinotify.ProcessEvent):
             self.queue.put(mic)
 
 class Gctf:
-    def __init__(self, timeout, trials, logger, options, output_directory, cc_cutoff, executable):
-        self.timeout = timeout
-        self.trials = trials
+    def __init__(self, logger, options, output_directory, executable):
         self.logger = logger
         self.options = options
-        self.cc_cutoff = cc_cutoff
         self.executable = executable
 
         # create required folders
@@ -732,6 +762,9 @@ class Gctf:
         options['gid'] = gpu_id
         ctfstar = os.path.join(self.results_dir, micrograph.basename + '.star')
         options['ctfstar'] = ctfstar
+        timeout = options.pop('timeout')
+        trials = options.pop('trials')
+        cc_cutoff = options.pop('cc_cutoff')
         results = {}
 
         # generate the command
@@ -745,10 +778,10 @@ class Gctf:
         self.logger.info('>>> '+' '.join(map(str, cmd)))
 
         # execute the command
-        for i in range(self.trials):
+        for i in range(trials):
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE) # timeout only works if shell=False (default)
             try:
-                process.wait(timeout=self.timeout)
+                process.wait(timeout=timeout)
                 out, err = process.communicate()
 
                 if err:
@@ -802,7 +835,7 @@ class Gctf:
                                          header=1)
 
                     # find out the resolution at which the cross correlation beneath the cc_cutoff
-                    index = epa_df.CCC.lt(self.cc_cutoff).idxmax()
+                    index = epa_df.CCC.lt(cc_cutoff).idxmax()
                     res = epa_df.iloc[index]['Resolution']
                     results['Resolution'] = res
                     del results['CCC']  # we don't need this column anymore
@@ -839,16 +872,14 @@ class Gctf:
                     return
 
             except subprocess.TimeoutExpired:
-                self.logger.warning('Timeout of {} s expired for gctf on micrograph {}. (trial {})'.format(self.timeout,micrograph.basename,i+1))
+                self.logger.warning('Timeout of {} s expired for gctf on micrograph {}. (trial {})'.format(timeout,micrograph.basename,i+1))
                 continue
 
         self.logger.error('Could not process gctf for micrograph {}'.format(micrograph.basename))
         return
 
 class Motioncor:
-    def __init__(self, timeout, trials, logger, options, output_directory, executable):
-        self.timeout = timeout
-        self.trials = trials
+    def __init__(self, logger, options, output_directory, executable):
         self.logger = logger
         self.options = options
         self.output_dir = output_directory
@@ -867,6 +898,8 @@ class Motioncor:
         options = self.options.copy() # create a copy of the dict, or other threads might override values
         options['Gpu'] = gpu_id
         options['OutMrc'] = os.path.splitext(micrograph.abspath)[0] + '.mrc'
+        timeout = options.pop('timeout')
+        trials = options.pop('trials')
 
         cmd = [self.executable]
 
@@ -882,10 +915,10 @@ class Motioncor:
                 cmd.append(str(val))
 
         self.logger.info('>>> ' + ' '.join(map(str, cmd)))
-        for i in range(self.trials):
+        for i in range(trials):
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             try:
-                process.wait(timeout=self.timeout)
+                process.wait(timeout=timeout)
                 out, err = process.communicate()
 
                 if err:
@@ -922,7 +955,7 @@ class Motioncor:
                     return
 
             except subprocess.TimeoutExpired:
-                self.logger.warning('Timeout of {} s expired for motioncor on micrograph {}. (trial {})'.format(self.timeout,micrograph.basename,i+1))
+                self.logger.warning('Timeout of {} s expired for motioncor on micrograph {}. (trial {})'.format(timeout,micrograph.basename,i+1))
                 continue
 
         self.logger.error("No motioncor results could be generated for micrograph {}".format(micrograph.basename))
@@ -945,7 +978,6 @@ class Micrograph:
         self.data = pd.concat([self.data, pd.Series(data=dictionary)])
         self.data.name = self.id
 
-#TODO make this nicer
 def crop_image(input_mrc, output_dir, equalize_hist=False):
     """
     Converts mrc to png and saves the image inside the output directory
@@ -957,17 +989,15 @@ def crop_image(input_mrc, output_dir, equalize_hist=False):
     """
     logging.captureWarnings(True)
 
-    with mrcfile.mmap(input_mrc, mode='r+', permissive=True) as mrc:
+    with mrcfile.open(input_mrc, mode='r+', permissive=True) as mrc:
         mrc.header.map = mrcfile.constants.MAP_ID  # output .mrc files from motioncor need this correction
         mrc.update_header_from_data()
-
-    mrc = mrcfile.open(input_mrc)
-    image_ary = np.squeeze(mrc.data)  # remove single-dimensional entries
-    if equalize_hist == True:
-        image_ary = exposure.equalize_hist(image_ary)
-    base = os.path.splitext(os.path.basename(input_mrc))[0]
-    output_image = os.path.join(output_dir, base + '.png')
-    misc.imsave(output_image, image_ary)
+        image_ary = np.squeeze(mrc.data)  # remove single-dimensional entries
+        if equalize_hist == True:
+            image_ary = exposure.equalize_hist(image_ary)
+        base = os.path.splitext(os.path.basename(input_mrc))[0]
+        output_image = os.path.join(output_dir, base + '.png')
+        misc.imsave(output_image, image_ary)
 
 if __name__=='__main__':
     Program =  QtWidgets.QApplication(sys.argv)

@@ -22,6 +22,26 @@
       </property>
      </widget>
     </item>
+    <item row="1" column="3">
+     <widget class="QPushButton" name="btn_Run">
+      <property name="text">
+       <string>Run</string>
+      </property>
+     </widget>
+    </item>
+    <item row="1" column="1" colspan="2">
+     <widget class="QLabel" name="label_status">
+      <property name="font">
+       <font>
+        <weight>75</weight>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="text">
+       <string/>
+      </property>
+     </widget>
+    </item>
     <item row="0" column="1" colspan="4">
      <widget class="QTabWidget" name="tabWidget">
       <property name="enabled">
@@ -362,7 +382,7 @@
 If the program takes longer than this to run, it will abort</string>
              </property>
              <property name="text">
-              <string>300</string>
+              <string/>
              </property>
             </widget>
            </item>
@@ -379,7 +399,7 @@ If the program takes longer than this to run, it will abort</string>
               <string/>
              </property>
              <property name="text">
-              <string>3</string>
+              <string/>
              </property>
             </widget>
            </item>
@@ -718,7 +738,7 @@ including the frames thrown away.</string>
 If the program takes longer than this to run, it will abort</string>
              </property>
              <property name="text">
-              <string>100</string>
+              <string/>
              </property>
             </widget>
            </item>
@@ -732,7 +752,7 @@ If the program takes longer than this to run, it will abort</string>
            <item row="1" column="1">
             <widget class="QLineEdit" name="gctf_trials">
              <property name="text">
-              <string>3</string>
+              <string/>
              </property>
             </widget>
            </item>
@@ -749,7 +769,7 @@ If the program takes longer than this to run, it will abort</string>
               <string>Cross correlation cutoff value for estimating the resolution</string>
              </property>
              <property name="text">
-              <string>0.75</string>
+              <string/>
              </property>
             </widget>
            </item>
@@ -875,8 +895,8 @@ If the program takes longer than this to run, it will abort</string>
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>183</width>
-                <height>589</height>
+                <width>265</width>
+                <height>623</height>
                </rect>
               </property>
               <layout class="QFormLayout" name="formLayout">
@@ -1247,26 +1267,6 @@ If the program takes longer than this to run, it will abort</string>
       </widget>
      </widget>
     </item>
-    <item row="1" column="3">
-     <widget class="QPushButton" name="btn_Run">
-      <property name="text">
-       <string>Run</string>
-      </property>
-     </widget>
-    </item>
-    <item row="1" column="1" colspan="2">
-     <widget class="QLabel" name="label_status">
-      <property name="font">
-       <font>
-        <weight>75</weight>
-        <bold>true</bold>
-       </font>
-      </property>
-      <property name="text">
-       <string/>
-      </property>
-     </widget>
-    </item>
    </layout>
   </widget>
   <widget class="QMenuBar" name="menubar">
@@ -1275,7 +1275,7 @@ If the program takes longer than this to run, it will abort</string>
      <x>0</x>
      <y>0</y>
      <width>745</width>
-     <height>20</height>
+     <height>25</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">

@@ -6,7 +6,7 @@ import logging
 import pyinotify
 import subprocess
 import shutil
-from datetime import datetime
+import json
 import numpy as np
 import pandas as pd
 from queue import Queue
@@ -30,6 +30,7 @@ class MPIApp(QtWidgets.QMainWindow):
         self.ui.btn_Exit.clicked.connect(self.exit)
         self.ui.btn_motioncor_executable.clicked.connect(self.select_motioncor_executable)
         self.ui.btn_gctf_executable.clicked.connect(self.select_gctf_executable)
+        self.ui.actionLoad_configurations.triggered.connect(self.select_configurations)
 
         # line values connected to each other
         self.ui.line_kV.textChanged.connect(self.sync_motioncor_kV)
@@ -41,76 +42,17 @@ class MPIApp(QtWidgets.QMainWindow):
         self.ui.line_ac.textChanged.connect(self.sync_gctf_ac)
         self.ui.motioncor_FtBin.textChanged.connect(self.sync_FtBin_changes_gctf_apix)
 
-        # defaults for placeholder text
+        # load default values
+        config = json.load(open('base_config.json'))
         self.main_defaults = {
             'InputDir': os.path.abspath('.'),
             'OutputDir': os.path.join(os.path.abspath('.'), 'output'),
-            'kV': 300.0,
-            'apix': 1.000,
-            'dose_per_frame': 1.000,
-            'cs': 2.62,
-            'ac': 0.1
         }
-        self.motioncor_defaults = {
-            'Serial': 0,
-            'MaskCent': (0.0000, 0.0000),
-            'MaskSize': (1.0000, 1.0000),
-            'Patch': (0, 0),
-            'Iter': 5,
-            'Tol': 0.5000,
-            'Bft': 100.000,
-            'StackZ': 0,
-            'FtBin': 1.0000,
-            'InitDose': 0.0000,
-            'FmDose': self.main_defaults['dose_per_frame'],
-            'PixSize': self.main_defaults['apix'],
-            'kV': self.main_defaults['kV'],
-            'Throw': 0,
-            'Trunc': 0,
-            'Group': 1,
-            'FmRef': -1,
-            'OutStack': 0,
-            'RotGain': 0,
-            'FlipGain': 0,
-            'Align': 1,
-            'Tilt': (0.0000, 0.0000),
-            'Mag': (1.0000, 1.0000, 0.0000),
-            'Crop': (0, 0),
-            'Gpu': 0
-        }
-        self.gctf_defaults = {
-            'local_overlap': 0.5,
-            'B_resH': 6.0,
-            'resL': 50.0,
-            'phase_shift_H': 180.0,
-            'do_local_refine': 0,
-            'phase_shift_S': 10.0,
-            'defU_init': 20000.0,
-            'local_radius': 1024.0,
-            'boxsize': 1024.0,
-            'ac': self.main_defaults['ac'],
-            'defH': 90000.0,
-            'mdef_fit': 0.0,
-            'ctfout_resH': 2.8,
-            'convsize': 85.0,
-            'phase_shift_L': 0.0,
-            'apix': self.main_defaults['apix'],
-            'local_resH': 5.0,
-            'resH': 4.0,
-            'Href_bfac': 50.0,
-            'do_EPA': 0.0,
-            'phase_shift_T': 1.0,
-            'kV': self.main_defaults['kV'],
-            'local_avetype': 2.0,
-            'EPA_oversmp': 4.0,
-            'defS': 500.0,
-            'cs': self.main_defaults['cs'],
-            'defL': 5000.0,
-            'astm': 1000.0,
-            'overlap': 0.5,
-            'ctfout_bfac': 50.0,
-            'refine_local_astm': 0.0,
-            'mdef_aveN': 1.0, 'defA_err': 15.0, 'B_resL': 15.0, 'Href_resL': 15.0, 'Href_resH': 4.0, 'dstep': 14.0, 'B_err': 50.0, 'B_init': 200.0, 'defV_init': 20000.0, 'local_boxsize': 512.0, 'refine_input_ctf': 0, 'ctfout_resL': 100.0, 'defA_init': 0.0, 'bfac': 150.0, 'local_resL': 15.0, 'mdef_ave_type': 0.0, 'do_validation': 0, 'do_mdef_refine': 0, 'do_Hres_ref': 0, 'defU_err': 500.0, 'do_phase_flip': 0.0, 'defV_err': 500.0}
+        self.main_defaults.update(config["Main"])
+        self.motioncor_defaults = config["Motioncor"]
+        self.gctf_defaults = config["Gctf"]
+
+        # set placeholder text of the lineEdit objects
         self.set_placeholder_text()
 
         self.process_table = pd.DataFrame()
@@ -206,6 +148,58 @@ class MPIApp(QtWidgets.QMainWindow):
         file = str(QtWidgets.QFileDialog.getOpenFileName(self, "Select File")[0])
         self.ui.line_Gain.setText(file)
 
+    def select_configurations(self):
+        filename = QtWidgets.QFileDialog.getOpenFileName(self, 'Open File', '.', "Config (*.json)")[0]
+        config = json.load(open(filename))
+        if "Main" in config:
+            for param, value in config["Main"].items():
+                if hasattr(self.ui, 'line_' + param):
+                    line = getattr(self.ui, 'line_' + param)
+                    if type(value) == str:
+                        line.setText(value)
+                    elif type(value) == int or type(value) == float:
+                        line.setText(str(value))
+                    elif type(value) == list:
+                        line.setText(' '.join(map(str, value)))
+
+        if "Motioncor" in config:
+            m_string = ""
+            for param, value in config["Motioncor"].items():
+                # convert value to string
+                if type(value) == int or type(value) == float:
+                    value_as_string = str(value)
+                elif type(value) == list:
+                    value_as_string =' '.join(map(str, value))
+                else:
+                    value_as_string = value
+
+                # fill in the lineEdits or append to additional parameters
+                if hasattr(self.ui, 'motioncor_' + param):
+                    line = getattr(self.ui, 'motioncor_' + param)
+                    line.setText(value_as_string)
+                else:
+                    m_string += "-{param} {value} ".format(param=param, value=value_as_string)
+            self.ui.plainTextEdit_motioncor.setPlainText(m_string)
+
+        if "Gctf" in config:
+            g_string = ""
+            for param, value in config["Gctf"].items():
+                # convert value to string
+                if type(value) == int or type(value) == float:
+                    value_as_string = str(value)
+                elif type(value) == list:
+                    value_as_string =' '.join(map(str, value))
+                else:
+                    value_as_string = value
+
+                # fill in the lineEdits or append to additional parameters
+                if hasattr(self.ui, 'gctf_' + param):
+                    line = getattr(self.ui, 'gctf_' + param)
+                    line.setText(value_as_string)
+                else:
+                    g_string += "--{param} {value} ".format(param=param, value=value_as_string)
+            self.ui.plainTextEdit_gctf.setPlainText(g_string)
+
     def select_motioncor_executable(self):
         self.motioncor_executable = str(QtWidgets.QFileDialog.getOpenFileName(self, "Select Executable")[0])
 
@@ -273,7 +267,7 @@ class MPIApp(QtWidgets.QMainWindow):
             try:
                 line = getattr(self.ui, 'line_{}'.format(param))
                 value = self.main_defaults[param]
-                if type(value) == tuple:
+                if type(value) == list:
                     placeholder = ' '.join(map(str, value))
                 else:
                     placeholder = str(value)
@@ -286,7 +280,7 @@ class MPIApp(QtWidgets.QMainWindow):
             try:
                 line = getattr(self.ui, 'motioncor_{}'.format(param))
                 value = self.motioncor_defaults[param]
-                if type(value) == tuple:
+                if type(value) == list:
                     placeholder = ' '.join(map(str, value))
                 else:
                     placeholder = str(value)
@@ -299,7 +293,7 @@ class MPIApp(QtWidgets.QMainWindow):
             try:
                 line = getattr(self.ui, 'gctf_{}'.format(param))
                 value = self.gctf_defaults[param]
-                if type(value) == tuple:
+                if type(value) == list:
                     placeholder = ' '.join(map(str, value))
                 else:
                     placeholder = str(value)
@@ -316,6 +310,10 @@ class MPIApp(QtWidgets.QMainWindow):
             str_PixSize = self.ui.motioncor_PixSize.text()
             str_FmDose = self.ui.motioncor_FmDose.text()
             self.motioncor_options.update({
+                # defaults are either loaded from the main configuration file
+                # or if you specify your own configuration file,
+                # the text will be set to that values and lineEdits are
+                # updated automatically
                 'kV': self.main_defaults['kV'] if str_kV=='' else float(str_kV),
                 'PixSize': self.main_defaults['apix'] if str_PixSize=='' else float(str_PixSize),
                 'FmDose': self.main_defaults['dose_per_frame'] if str_FmDose=='' else float(str_FmDose),
@@ -344,9 +342,9 @@ class MPIApp(QtWidgets.QMainWindow):
                 if key in self.motioncor_defaults:
                     try:
                         default_type = type(self.motioncor_defaults[key])
-                        if default_type == tuple:
+                        if default_type == list:
                             default_item_type = type(self.motioncor_defaults[key][0])
-                            self.motioncor_options[key] = tuple(map(default_item_type, value.split()))
+                            self.motioncor_options[key] = list(map(default_item_type, value.split()))
                             assert len(self.motioncor_options[key]) == len(self.motioncor_defaults[key])
                         else:
                             self.motioncor_options[key] = default_type(self.motioncor_options[key])
@@ -408,9 +406,9 @@ class MPIApp(QtWidgets.QMainWindow):
                 if key in self.gctf_defaults:
                     try:
                         default_type = type(self.gctf_defaults[key])
-                        if default_type == tuple:
+                        if default_type == list:
                             default_item_type = type(self.gctf_defaults[key][0])
-                            self.gctf_options[key] = tuple(map(default_item_type, value.split()))
+                            self.gctf_options[key] = list(map(default_item_type, value.split()))
                             assert len(self.gctf_options[key]) == len(self.gctf_defaults[key])
                         else:
                             self.gctf_options[key] = default_type(self.gctf_options[key])
@@ -583,28 +581,52 @@ class MPIApp(QtWidgets.QMainWindow):
             QtWidgets.QMessageBox.about(self, 'ERROR', str(ex))
 
     def run(self):
+        # reset the stop event to False in case we did an abort before
+        self.stop_event.clear()
+
+        # start everything
         self.start_logging()
         self.start_process_queue()
         self.start_event_notifier()
         self.start_worker_threads()
+
+        # write data to csv file every 10 seconds
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.process_table_dump)
-        self.timer.start(10000) # write data to csv file every 10 seconds
+        self.timer.start(10000)
+
+        # set status label
+        self.ui.label_status.setText('Processing...')
         pass
 
     def abort(self):
+        # set status label
+        self.ui.label_status.setText('Killing worker threads')
+        self.ui.label_status.repaint()
+
+        # set stop events
         self.notifier.stop()
         self.stop_event.set()
         self.queue.queue.clear()
-        for _ in self.gpu_threads:
+
+        # wait for all threads to finish before continuing
+        for thread in self.gpu_threads:
             self.queue.put(None)
+            thread.join()
+
+        # stop writing to the process table
         self.timer.stop()
+
+        # reset all the gui elements to normal
         self.ui.btn_Run.setText('Run')
         self.ui.btn_Run.clicked.disconnect()
         self.ui.btn_Run.clicked.connect(self.accept)
         enable_this = self.select_ui_elements_that_start_with('groupBox')
         for obj in enable_this:
             obj.setEnabled(True)
+
+        # clear status label
+        self.ui.label_status.setText('')
         pass
 
     def select_ui_elements_that_start_with(self, string):
@@ -825,7 +847,7 @@ class Motioncor:
             if key == 'InTiff' or key == 'InMrc':
                 val = micrograph.files['motioncor_input']
             cmd.append('-' + key)
-            if type(val) == tuple:
+            if type(val) == list:
                 val = ' '.join(map(str, val))
                 cmd.append(val)
             else:

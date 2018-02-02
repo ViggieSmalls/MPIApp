@@ -15,21 +15,14 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout_3">
-    <item row="1" column="0">
-     <widget class="QPushButton" name="btn_Run">
-      <property name="text">
-       <string>Run</string>
-      </property>
-     </widget>
-    </item>
-    <item row="1" column="1">
+    <item row="1" column="4">
      <widget class="QPushButton" name="btn_Exit">
       <property name="text">
        <string>Exit</string>
       </property>
      </widget>
     </item>
-    <item row="0" column="0" colspan="2">
+    <item row="0" column="1" colspan="4">
      <widget class="QTabWidget" name="tabWidget">
       <property name="enabled">
        <bool>true</bool>
@@ -882,7 +875,7 @@ If the program takes longer than this to run, it will abort</string>
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>263</width>
+                <width>183</width>
                 <height>589</height>
                </rect>
               </property>
@@ -1254,6 +1247,26 @@ If the program takes longer than this to run, it will abort</string>
       </widget>
      </widget>
     </item>
+    <item row="1" column="3">
+     <widget class="QPushButton" name="btn_Run">
+      <property name="text">
+       <string>Run</string>
+      </property>
+     </widget>
+    </item>
+    <item row="1" column="1" colspan="2">
+     <widget class="QLabel" name="label_status">
+      <property name="font">
+       <font>
+        <weight>75</weight>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="text">
+       <string/>
+      </property>
+     </widget>
+    </item>
    </layout>
   </widget>
   <widget class="QMenuBar" name="menubar">
@@ -1274,15 +1287,7 @@ If the program takes longer than this to run, it will abort</string>
     <addaction name="separator"/>
     <addaction name="actionExit"/>
    </widget>
-   <widget class="QMenu" name="menuHelp">
-    <property name="title">
-     <string>Help</string>
-    </property>
-    <addaction name="actionMotioncor_manual"/>
-    <addaction name="actionGctf_manual"/>
-   </widget>
    <addaction name="menuFile"/>
-   <addaction name="menuHelp"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionLoad_configurations">

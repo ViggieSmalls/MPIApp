@@ -23,6 +23,9 @@ class MPIApp(QtWidgets.QMainWindow):
         super().__init__()
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
+        self.logger = logging.getLogger(__name__)
+
+        # button actions
         self.ui.btnInputDir.clicked.connect(self.select_input_directory)
         self.ui.btnOutputDir.clicked.connect(self.select_output_directory)
         self.ui.btnGain.clicked.connect(self.select_gain)
@@ -30,7 +33,7 @@ class MPIApp(QtWidgets.QMainWindow):
         self.ui.btn_Exit.clicked.connect(self.exit)
         self.ui.btn_motioncor_executable.clicked.connect(self.select_motioncor_executable)
         self.ui.btn_gctf_executable.clicked.connect(self.select_gctf_executable)
-        self.ui.actionLoad_configurations.triggered.connect(self.select_configurations)
+        self.ui.actionLoad_configurations.triggered.connect(partial(self.select_configuration_file, directory='.'))
 
         # line values connected to each other
         self.ui.line_kV.textChanged.connect(self.sync_motioncor_kV)
@@ -55,9 +58,33 @@ class MPIApp(QtWidgets.QMainWindow):
         # set placeholder text of the lineEdit objects
         self.set_placeholder_text()
 
-        self.process_table = pd.DataFrame()
-        self.process_table_lock = Lock()
-        self.logger = logging.getLogger(__name__)
+        # list latest configurations
+        self.ui.menuLatest_configurations = QtWidgets.QMenu(self.ui.menuFile)
+        self.ui.actionRecent_configurations.setMenu(self.ui.menuLatest_configurations)
+
+        self.config_dir = os.path.join(os.path.dirname(__file__), 'last_configs')
+        if not os.path.isdir(self.config_dir):
+            os.mkdir(self.config_dir)
+        files = os.listdir(self.config_dir)
+        files.sort(reverse=True) # latest first
+        for n, filename in enumerate(files):
+            obj_name = 'file_' + str(n)
+            setattr(self.ui, obj_name, QtWidgets.QAction(self))
+            action = getattr(self.ui, obj_name)
+            action.setText(filename)
+            self.ui.menuLatest_configurations.addAction(action)
+            action.triggered.connect(partial(self.load_configurations, filename=os.path.join(self.config_dir, filename)))
+
+            if n>5:
+                self.ui.menuLatest_configurations.addSeparator()
+                text = 'Show all...'
+                setattr(self.ui, 'actionShow_all', QtWidgets.QAction(self))
+                action = getattr(self.ui, 'actionShow_all')
+                action.setText(text)
+                action.triggered.connect(partial(self.select_configuration_file, directory=self.config_dir))
+
+
+
 
         # update motioncor options if lines are edited
         self.motioncor_options = {}
@@ -148,8 +175,12 @@ class MPIApp(QtWidgets.QMainWindow):
         file = str(QtWidgets.QFileDialog.getOpenFileName(self, "Select File")[0])
         self.ui.line_Gain.setText(file)
 
-    def select_configurations(self):
-        filename = QtWidgets.QFileDialog.getOpenFileName(self, 'Open File', '.', "Config (*.json)")[0]
+    def select_configuration_file(self, directory):
+        filename = QtWidgets.QFileDialog.getOpenFileName(self, 'Open File', directory, "Config (*.json)")[0]
+        if os.path.isfile(filename):
+            self.load_configurations(filename)
+
+    def load_configurations(self, filename):
         config = json.load(open(filename))
         if "Main" in config:
             for param, value in config["Main"].items():
@@ -445,6 +476,8 @@ class MPIApp(QtWidgets.QMainWindow):
             self.logger.addHandler(fh)
 
     def start_process_queue(self):
+        self.process_table = pd.DataFrame()
+        self.process_table_lock = Lock()
         self.queue = Queue()
         self.stop_event = Event()
 
@@ -516,13 +549,6 @@ class MPIApp(QtWidgets.QMainWindow):
 
         # create some additional columns for the web page
         if not self.process_table.empty:
-            # df[['Defocus', 'Defocus_U', 'Defocus_V']] = self.process_table[['Defocus', 'Defocus_U', 'Defocus_V']] / 1000
-            # self.process_table['Defocus'] = self.process_table[["Defocus_U", "Defocus_V"]].mean(axis=1)
-            # self.process_table[['Defocus', 'Defocus_U', 'Defocus_V']] = self.process_table[['Defocus', 'Defocus_U', 'Defocus_V']] / 1000
-            # self.process_table['delta_Defocus'] = self.process_table["Defocus_U"] - self.process_table["Defocus_V"]
-            # if 'Phase_shift' in self.process_table.columns:
-            #     self.process_table[['Phase_shift']] = self.process_table[['Phase_shift']] / 180
-
             # create histograms
             self.process_table.hist('Resolution', edgecolor='black', color='green')
             plt.xlabel('Resolution (\u212B)')
@@ -533,7 +559,7 @@ class MPIApp(QtWidgets.QMainWindow):
             plt.savefig(os.path.join(self.outputDir, 'histogram_defocus.png'))
             plt.close()
 
-            # write to process_table.csv
+            ### write csv file
             self.logger.debug('Writing data to process table csv file')
             self.process_table.set_index('micrograph').sort_index().to_csv(csv_file)
 

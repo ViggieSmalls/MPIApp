@@ -1284,6 +1284,7 @@ If the program takes longer than this to run, it will abort</string>
     </property>
     <addaction name="actionSave_configurations"/>
     <addaction name="actionLoad_configurations"/>
+    <addaction name="actionRecent_configurations"/>
     <addaction name="separator"/>
     <addaction name="actionExit"/>
    </widget>
@@ -1313,6 +1314,11 @@ If the program takes longer than this to run, it will abort</string>
   <action name="actionGctf_manual">
    <property name="text">
     <string>Gctf manual</string>
+   </property>
+  </action>
+  <action name="actionRecent_configurations">
+   <property name="text">
+    <string>Recent configurations</string>
    </property>
   </action>
  </widget>

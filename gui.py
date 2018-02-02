@@ -582,8 +582,11 @@ class Ui_MainWindow(object):
         self.actionMotioncor_manual.setObjectName("actionMotioncor_manual")
         self.actionGctf_manual = QtWidgets.QAction(MainWindow)
         self.actionGctf_manual.setObjectName("actionGctf_manual")
+        self.actionRecent_configurations = QtWidgets.QAction(MainWindow)
+        self.actionRecent_configurations.setObjectName("actionRecent_configurations")
         self.menuFile.addAction(self.actionSave_configurations)
         self.menuFile.addAction(self.actionLoad_configurations)
+        self.menuFile.addAction(self.actionRecent_configurations)
         self.menuFile.addSeparator()
         self.menuFile.addAction(self.actionExit)
         self.menubar.addAction(self.menuFile.menuAction())
@@ -768,6 +771,7 @@ class Ui_MainWindow(object):
         self.actionExit.setText(_translate("MainWindow", "Quit"))
         self.actionMotioncor_manual.setText(_translate("MainWindow", "Motioncor manual"))
         self.actionGctf_manual.setText(_translate("MainWindow", "Gctf manual"))
+        self.actionRecent_configurations.setText(_translate("MainWindow", "Recent configurations"))
 
 
 if __name__ == "__main__":

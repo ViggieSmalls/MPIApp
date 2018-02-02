@@ -13,7 +13,7 @@ from queue import Queue
 from threading import Thread, Lock, Event
 from functools import partial
 import matplotlib.pyplot as plt
-
+import datetime
 import mrcfile
 from scipy import misc
 from skimage import exposure
@@ -97,16 +97,6 @@ class MPIApp(QtWidgets.QMainWindow):
         gctf_lines = self.select_ui_elements_that_start_with('gctf_')
         for line in gctf_lines:
             line.textChanged.connect(partial(self.sync_line_edits_gctf, obj_name=line.objectName()))
-
-    def test(self):
-        m_string='-FtBin 2 -Patch 5 5 -Bft 300 -kV 300 -PixSize 0.53 -FmDose 1.0 -Throw 2'
-        self.ui.plainTextEdit_motioncor.setPlainText(m_string)
-        g_string='--apix 1.06  --kV 300 --cs 2.62 --ac 0.1 --phase_shift_L 10 --phase_shift_H 175 --phase_shift_S 10 --phase_shift_T 1 --dstep 1.06 --defL 3000 --defH 7000 --defS 500 --astm 1000 --bfac 100 --resL 20.0 --resH 3.0 --boxsize 1024 --do_EPA 1 --refine_after_EPA 0 --convsize 30 --do_Hres_ref 1 --Href_resL 15.0 --Href_resH 3.0 --Href_bfac 50 --estimate_B 1 --B_resL 20.0 --B_resH 3.0 --do_validation 1'
-        self.ui.plainTextEdit_gctf.setPlainText(g_string)
-        self.ui.line_Gain.setText('/home/viktor/Downloads/SuperRef_20S_000_Mar28_14.49.23.mrc')
-        self.ui.GPU_0.setChecked(True)
-        self.ui.GPU_1.setChecked(True)
-
 
     def sync_line_edits_motioncor(self, text, obj_name):
         param = obj_name.split('_')[1]
@@ -230,6 +220,18 @@ class MPIApp(QtWidgets.QMainWindow):
                 else:
                     g_string += "--{param} {value} ".format(param=param, value=value_as_string)
             self.ui.plainTextEdit_gctf.setPlainText(g_string)
+
+    # FIXME this can only save configurations if we press run.
+    # get options as soon as typed in?
+    def save_configurations(self):
+        config = {"Main":{}, "Motioncor": {}, "Gctf": {}}
+        config["Main"] = self.main_defaults
+        config["Motioncor"] = self.motioncor_options
+        config["Gctf"] = self.gctf_options
+        date_string = datetime.datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
+        config_filename = os.path.join(self.config_dir, date_string + '.json')
+        with open(config_filename, 'w') as config_file:
+            json.dump(config, config_file, indent=4, sort_keys=True, separators=(',', ': '))
 
     def select_motioncor_executable(self):
         self.motioncor_executable = str(QtWidgets.QFileDialog.getOpenFileName(self, "Select Executable")[0])
@@ -589,7 +591,6 @@ class MPIApp(QtWidgets.QMainWindow):
 
     def accept(self):
         try:
-            self.test()
             self.get_GPUs()
             self.get_file_extension()
             self.get_input_dir()
@@ -609,6 +610,7 @@ class MPIApp(QtWidgets.QMainWindow):
     def run(self):
         # reset the stop event to False in case we did an abort before
         self.stop_event.clear()
+        self.save_configurations()
 
         # start everything
         self.start_logging()
@@ -943,6 +945,7 @@ class Micrograph:
         self.data = pd.concat([self.data, pd.Series(data=dictionary)])
         self.data.name = self.id
 
+#TODO make this nicer
 def crop_image(input_mrc, output_dir, equalize_hist=False):
     """
     Converts mrc to png and saves the image inside the output directory

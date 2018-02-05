@@ -1,23 +1,27 @@
 import os
-import sys
-from PyQt5 import QtCore, QtGui, QtWidgets
+import shutil
+import logging
+import subprocess
+import json
+import datetime
+
+from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QMessageBox
 from gui import Ui_MainWindow
-import logging
+
 import pyinotify
-import subprocess
-import shutil
-import json
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+
 from queue import Queue
 from threading import Thread, Lock, Event
 from functools import partial
-import matplotlib.pyplot as plt
-import datetime
+
 import mrcfile
 from scipy import misc
 from skimage import exposure
+
 
 class MPIApp(QtWidgets.QMainWindow):
     def __init__(self):
@@ -49,7 +53,7 @@ class MPIApp(QtWidgets.QMainWindow):
         self.ui.motioncor_FtBin.textChanged.connect(self.sync_FtBin_changes_gctf_apix)
 
         # load default values
-        config = json.load(open('base_config.json'))
+        config = json.load(open(os.path.join(os.path.dirname(__file__), 'base_config.json')))
         self.main_defaults = {
             'InputDir': os.path.abspath('.'),
             'OutputDir': os.path.join(os.path.abspath('.'), 'output'),
@@ -547,14 +551,21 @@ class MPIApp(QtWidgets.QMainWindow):
     def process_table_dump(self):
         """
         Write the data in the process table to a csv file
-        and to a star file to use as input for relion
+        and to a star file to use as input for relion.
+        Copy a project.html file inside the output directory
         """
+
         csv_file = os.path.join(self.outputDir, "process_table.csv")
         gctf_star = os.path.join(self.outputDir, 'micrographs_all_gctf.star')
+        project_html = os.path.join(self.outputDir, 'project.html')
+
+        if not os.path.isfile(project_html):
+            template = os.path.join(os.path.dirname(__file__), '..', 'templates', 'project.html')
+            shutil.copy(template, self.outputDir)
 
         self.process_table_lock.acquire()
 
-        # create some additional columns for the web page
+        # write out all the stuff to file
         if not self.process_table.empty:
             # create histograms
             self.process_table.hist('Resolution', edgecolor='black', color='green')
@@ -649,6 +660,8 @@ class MPIApp(QtWidgets.QMainWindow):
 
         # stop writing to the process table
         self.timer.stop()
+        # write data one last time
+        self.process_table_dump()
 
         # reset all the gui elements to normal
         self.ui.btn_Run.setText('Run')
@@ -716,7 +729,7 @@ class Gctf:
     def __call__(self, micrograph, gpu_id: int):
         """
         Gctf is called as: executable [options] [file(s)]
-        The micrograph is processed inside the directory where the input file resides
+        The micrograph is processed inside the directory of the input file
         Gctf can not be called on symbolic links
 
         :param micrograph: Micrograph object
@@ -832,8 +845,8 @@ class Gctf:
                     # but it is inside static/gctf, so we know what it is
                     crop_image(micrograph.files['gctf_ctf_fit'], self.static_dir, equalize_hist=False)
 
-                    # move the log file to the static dir
-                    shutil.move(micrograph.files['gctf_log'], self.static_dir)
+                    # copy the log file to the static dir
+                    shutil.copy(micrograph.files['gctf_log'], self.static_dir)
                     micrograph.add_data(
                         {
                             'gctf_ctf_fit': 'static/gctf/{}.png'.format(micrograph.basename),
@@ -910,8 +923,8 @@ class Motioncor:
 
                     crop_image(micrograph.files['motioncor_aligned_DW'], self.static_dir, equalize_hist=True)
 
-                    # move the log file to the static directory
-                    shutil.move(micrograph.files['motioncor_log'], self.static_dir)
+                    # copy the log file to the static directory
+                    shutil.copy(micrograph.files['motioncor_log'], self.static_dir)
                     micrograph.add_data(
                         {
                             'motioncor_aligned_DW': 'static/motioncor/{}_DW.png'.format(micrograph.basename),
@@ -971,6 +984,7 @@ def crop_image(input_mrc, output_dir, equalize_hist=False):
         misc.imsave(output_image, image_ary)
 
 if __name__=='__main__':
+    import sys
     Program =  QtWidgets.QApplication(sys.argv)
     MyGui = MPIApp()
     MyGui.show()

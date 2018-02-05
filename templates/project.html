@@ -90,9 +90,9 @@
                     Defocus: 'y',
                     Phase_shift: 'y2'
                 },
-                empty: { label: { text: "No Data Available" } },
+                empty: { label: { text: "No Data Available" } }
                 //one can make some more interaction with this, e.g. display an image
-                onclick: function(d, i) { console.log(d.index); }
+                //onclick: function(d, i) { console.log(d.index); }
             },
             axis: {
                 x: {
@@ -134,8 +134,10 @@
             }
         });
 
+        // populate data table
         $(document).ready(function() {
-            var table = $('#data_table').DataTable( {
+            var data_table_selector = $('#data_table');
+            var table = data_table_selector.DataTable( {
                 scrollY:        '48vh',
                 scrollCollapse: true,
                 paging:         false,
@@ -192,18 +194,17 @@
             } );
 
             var last_image = table.row(':last', { order: 'applied' }).data();
-            var motioncor_image = last_image["motioncor_aligned_DW"];
-            var motioncor_png = motioncor_image.replace(".mrc",".png");
-            var gctf_image = last_image['gctf_ctf_fit'];
-            var gctf_png = gctf_image.replace(".ctf",".png");
-            $("#dw-image").attr("src",'static/' + motioncor_png);
-            $("#ps-image").attr("src",'static/' + gctf_png);
+            $("#dw-image").attr("src",last_image["motioncor_aligned_DW"]);
+            $("#ps-image").attr("src",last_image['gctf_ctf_fit']);
 
-            $('#data_table tbody').on( 'click', 'tr', function () {
-                var mic_id = $(this).attr("id");
-                $("#dw-image").attr("src",`static/motioncor/${mic_id}_DW.png`);
-                $("#ps-image").attr("src",`static/gctf/${mic_id}.png`);
+            // add some functionality when table row is clicked
+            data_table_selector.find('tbody').on( 'click', 'tr', function () {
+                // change images based on selected row
+                var micrograph = table.row( this ).data();
+                $("#dw-image").attr("src",micrograph["motioncor_aligned_DW"]);
+                $("#ps-image").attr("src",micrograph['gctf_ctf_fit']);
 
+                // highlight rows when selected
                 if ( $(this).hasClass('selected') ) {
                     $(this).removeClass('selected');
                 }
@@ -211,6 +212,7 @@
                     table.$('tr.selected').removeClass('selected');
                     $(this).addClass('selected');
                 }
+
 
             });
         } );

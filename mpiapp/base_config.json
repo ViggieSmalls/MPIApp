@@ -7,6 +7,8 @@
     "ac": 0.1
   },
   "Motioncor": {
+    "InTiff": "",
+    "InMrc": "",
     "timeout": 300.0,
     "trials": 3,
     "Serial": 0,

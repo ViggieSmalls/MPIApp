@@ -142,14 +142,17 @@ class MPIApp(QtWidgets.QMainWindow):
     def select_input_directory(self):
         directory = str(QtWidgets.QFileDialog.getExistingDirectory(self, "Select Directory"))
         self.ui.line_InputDir.setText(directory)
+        self.main_defaults['InputDir'] = directory
 
     def select_output_directory(self):
         directory = str(QtWidgets.QFileDialog.getExistingDirectory(self, "Select Directory"))
         self.ui.line_OutputDir.setText(directory)
+        self.main_defaults['OutputDir'] = directory
 
     def select_gain(self):
-        file = str(QtWidgets.QFileDialog.getOpenFileName(self, "Select File")[0])
-        self.ui.line_Gain.setText(file)
+        filepath = str(QtWidgets.QFileDialog.getOpenFileName(self, "Select File")[0])
+        self.ui.line_Gain.setText(filepath)
+        self.main_defaults['Gain'] = filepath
 
     def select_configuration_file(self, directory):
         filename = QtWidgets.QFileDialog.getOpenFileName(self, 'Open File', directory, "Config (*.json)")[0]

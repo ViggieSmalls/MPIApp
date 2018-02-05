@@ -1,16 +1,14 @@
 # mpiapp
 
-The MPIApp is a software tool written in Python, that allows automation of repetitive tasks.
-* Pyinotify: Detection of new file system changes, e.g. incoming files
+The MPIApp is a software tool for electron microscopy for pipeline processing of recorded micrographs.
 
 ## Setup
+Download the repository.
 Create a virtual environment for python and install requirements
 ```
-virtualenv -p python3 venv
-source venv/bin/activate
-pip install -r requirements.txt
+conda create --name mpiapp
+source activate mpiapp
+pip install pyinotify mrcfile
+conda install -c dsdale24 pyqt5
 ```
-You might need to install the python3-tk package to use the gui interface:
-```
-sudo apt-get install python3-tk
-```
+Launch the application with `python mpiapp.py`

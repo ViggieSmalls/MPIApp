@@ -1,6 +1,7 @@
 import os
 import sys
 from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtWidgets import QMessageBox
 from gui import Ui_MainWindow
 import logging
 import pyinotify
@@ -34,6 +35,8 @@ class MPIApp(QtWidgets.QMainWindow):
         self.ui.btn_motioncor_executable.clicked.connect(self.select_motioncor_executable)
         self.ui.btn_gctf_executable.clicked.connect(self.select_gctf_executable)
         self.ui.actionLoad_configurations.triggered.connect(partial(self.select_configuration_file, directory='.'))
+        self.ui.actionSave_configurations.triggered.connect(partial(self.save_configurations, autosave=False))
+        self.ui.actionExit.triggered.connect(self.exit)
 
         # line values connected to each other
         self.ui.line_kV.textChanged.connect(self.sync_motioncor_kV)
@@ -50,6 +53,7 @@ class MPIApp(QtWidgets.QMainWindow):
         self.main_defaults = {
             'InputDir': os.path.abspath('.'),
             'OutputDir': os.path.join(os.path.abspath('.'), 'output'),
+            'Gain': ''
         }
         self.main_defaults.update(config["Main"])
         self.motioncor_defaults = config["Motioncor"]
@@ -65,9 +69,10 @@ class MPIApp(QtWidgets.QMainWindow):
         self.config_dir = os.path.join(os.path.dirname(__file__), 'last_configs')
         if not os.path.isdir(self.config_dir):
             os.mkdir(self.config_dir)
+
         files = os.listdir(self.config_dir)
         files.sort(reverse=True) # latest first
-        for n, filename in enumerate(files[:5]):
+        for n, filename in enumerate(files):
             obj_name = 'file_' + str(n)
             setattr(self.ui.menuLatest_configurations, obj_name, QtWidgets.QAction(self))
             action = getattr(self.ui.menuLatest_configurations, obj_name)
@@ -75,15 +80,16 @@ class MPIApp(QtWidgets.QMainWindow):
             self.ui.menuLatest_configurations.addAction(action)
             action.triggered.connect(partial(self.load_configurations, filename=os.path.join(self.config_dir, filename)))
 
-        # if there are more than 5 options show something else
-        #FIXME: this doesn't work???
-        self.ui.menuLatest_configurations.addSeparator()
-        text = 'Show all...'
-        setattr(self.ui.menuLatest_configurations, 'actionShow_all', QtWidgets.QAction(self))
-        action_show_all = getattr(self.ui.menuLatest_configurations, 'actionShow_all')
-        action_show_all.setObjectName('actionShow_all')
-        action_show_all.setText(text)
-        action_show_all.triggered.connect(partial(self.select_configuration_file, directory=self.config_dir))
+            if n>=4:
+                self.ui.menuLatest_configurations.addSeparator()
+                text = 'Show all...'
+                setattr(self.ui.menuLatest_configurations, 'actionShow_all', QtWidgets.QAction(self))
+                action_show_all = getattr(self.ui.menuLatest_configurations, 'actionShow_all')
+                action_show_all.setObjectName('actionShow_all')
+                action_show_all.setText(text)
+                self.ui.menuLatest_configurations.addAction(action_show_all)
+                action_show_all.triggered.connect(partial(self.select_configuration_file, directory=self.config_dir))
+                break
 
         self.motioncor_options = {}
         self.gctf_options = {}
@@ -199,15 +205,25 @@ class MPIApp(QtWidgets.QMainWindow):
 
     # FIXME this can only save configurations if we press run.
     # get options as soon as typed in?
-    def save_configurations(self):
+    def save_configurations(self, autosave):
+        self.get_motioncor_options()
+        self.get_gctf_options()
         config = {"Main":{}, "Motioncor": {}, "Gctf": {}}
         config["Main"] = self.main_defaults
         config["Motioncor"] = self.motioncor_options
         config["Gctf"] = self.gctf_options
-        date_string = datetime.datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
-        config_filename = os.path.join(self.config_dir, date_string + '.json')
-        with open(config_filename, 'w') as config_file:
-            json.dump(config, config_file, indent=4, sort_keys=True, separators=(',', ': '))
+
+        if autosave==True:
+            date_string = datetime.datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
+            config_filename = os.path.join(self.config_dir, date_string + '.json')
+            with open(config_filename, 'w') as config_file:
+                json.dump(config, config_file, indent=4, sort_keys=True, separators=(',', ': '))
+
+        elif autosave==False:
+            filename = QtWidgets.QFileDialog.getSaveFileName(self, 'Save File', os.path.join('.', 'my_config.json'), "Config (*.json)")[0]
+            if filename != '':
+                with open(filename, 'w') as config_file:
+                    json.dump(config, config_file, indent=4, sort_keys=True, separators=(',', ': '))
 
     def select_motioncor_executable(self):
         self.motioncor_executable = str(QtWidgets.QFileDialog.getOpenFileName(self, "Select Executable")[0])
@@ -317,7 +333,7 @@ class MPIApp(QtWidgets.QMainWindow):
             motioncor_lines = self.select_ui_elements_that_start_with('motioncor_')
             self.motioncor_options = {}
             for line in motioncor_lines:
-                param = line.objectName().split('_')[1]
+                param = line.objectName()[len('motioncor_'):]
                 value = line.text()
                 if value != '':
                     self.motioncor_options[param] = value
@@ -357,25 +373,12 @@ class MPIApp(QtWidgets.QMainWindow):
                     self.logger.warning('Unknown motioncor parameter: {}'.format(key))
 
             # check for essential motioncor parameters
-            essential_keys = ['timeout', 'trials', 'kV', 'PixSize', 'FmDose', 'Gain']
+            essential_keys = ['timeout', 'trials', 'kV', 'PixSize', 'FmDose'] #optionally also: 'Gain'
             for key in essential_keys:
-                if key == 'Gain':
-                    gain_reference = self.ui.line_Gain.text()
-                    assert os.path.isfile(gain_reference), "Select a Gain reference"
-                    self.motioncor_options['Gain'] = gain_reference
                 if key not in self.motioncor_options:
                     self.motioncor_options[key] = self.motioncor_defaults[key]
 
             self.get_file_extension()
-
-            # set motioncor exectutable to motioncor, if not selected
-            if not hasattr(self, 'motioncor_executable'):
-                self.motioncor_executable = 'motioncor'
-            assert shutil.which(self.motioncor_executable), "Select a motioncor executable"
-
-            self.motioncor = Motioncor(self.logger, self.motioncor_options,
-                                  self.outputDir, self.motioncor_executable)
-            print(self.motioncor_options)
 
         except Exception as ex:
             raise ex
@@ -386,17 +389,16 @@ class MPIApp(QtWidgets.QMainWindow):
             gctf_lines = self.select_ui_elements_that_start_with('gctf_')
             self.gctf_options = {}
             for line in gctf_lines:
-                param = line.objectName().split('_')[1]
+                param = line.objectName()[len('gctf_'):]
                 value = line.text()
                 if value != '':
                     self.gctf_options[param] = value
 
             # get additional parameters in the advanced options
             additional_parameters = self.ui.plainTextEdit_gctf.toPlainText()
-            print(additional_parameters)
             additional_parameters = additional_parameters.replace('\n', ' ')
             if additional_parameters != '':
-                groups = additional_parameters.split('-')
+                groups = additional_parameters.split('--')
                 # filter out empty strings from list
                 groups = list(filter(None, groups))
                 for group in groups:
@@ -432,71 +434,41 @@ class MPIApp(QtWidgets.QMainWindow):
                 if key not in self.gctf_options:
                     self.gctf_options[key] = self.gctf_defaults[key]
 
-            print(self.gctf_options)
-
-            # str_kV = self.ui.gctf_kV.text()
-            # str_apix = self.ui.gctf_apix.text()
-            # str_cs = self.ui.gctf_cs.text()
-            # str_ac = self.ui.gctf_ac.text()
-            # str_timeout = self.ui.gctf_timeout.text()
-            # str_trials = self.ui.gctf_trials.text()
-            # str_cc_cutoff = self.ui.gctf_cc_cutoff.text()
-            #
-            # self.gctf_options.update({
-            #     'timeout': self.gctf_defaults['timeout'] if str_timeout=='' else float(str_timeout),
-            #     'trials': self.gctf_defaults['trials'] if str_trials=='' else int(str_trials),
-            #     'cc_cutoff': self.gctf_defaults['cc_cutoff'] if str_cc_cutoff=='' else int(str_cc_cutoff),
-            #     'kV': self.main_defaults['kV'] if str_kV=='' else float(str_kV),
-            #     'apix': self.main_defaults['apix'] if str_apix=='' else float(str_apix),
-            #     'cs': self.main_defaults['cs'] if str_cs=='' else float(str_cs),
-            #     'ac': self.main_defaults['ac'] if str_ac=='' else float(str_ac),
-            # })
-            #
-            # # get additional parameters in the advanced options
-            # additional_parameters = self.ui.plainTextEdit_gctf.toPlainText()
-            # additional_parameters = additional_parameters.replace('\n', ' ')
-            # if additional_parameters != '':
-            #     groups = additional_parameters.split('--')
-            #     # filter out empty strings from list
-            #     groups = list(filter(None, groups))
-            #     for group in groups:
-            #         values = group.strip().split()
-            #         try:
-            #             param = values.pop(0)
-            #             self.gctf_options[param] = ' '.join(values)
-            #             # if len(values) == 0 it returns ''
-            #             # --> accounts for boolean option
-            #         except Exception as ex:
-            #             raise type(ex)("Check gctf parameter --{}".format(group))
-            #
-            # # check parameter type against defaults
-            # for key,value in self.gctf_options.items():
-            #     if key in self.gctf_defaults:
-            #         try:
-            #             default_type = type(self.gctf_defaults[key])
-            #             if default_type == list:
-            #                 default_item_type = type(self.gctf_defaults[key][0])
-            #                 self.gctf_options[key] = list(map(default_item_type, value.split()))
-            #                 assert len(self.gctf_options[key]) == len(self.gctf_defaults[key])
-            #             else:
-            #                 self.gctf_options[key] = default_type(self.gctf_options[key])
-            #
-            #         except Exception as ex:
-            #             raise type(ex)("Type of {} parameter is incorrect".format(key))
-            #     else:
-            #         print(key,value)
-            #
-            # # check gctf executable
-            # if not hasattr(self, 'gctf_executable'):
-            #     self.gctf_executable = 'gctf'
-            # assert shutil.which(self.gctf_executable), "Select a gctf executable"
-            #
-            # self.gctf = Gctf(self.logger, self.gctf_options, self.outputDir, self.gctf_executable)
-            #
-            # print(self.gctf_options)
-
         except Exception as ex:
             raise ex
+
+    def set_up_motioncor(self):
+        self.get_motioncor_options()
+
+        if 'Gain' not in self.motioncor_options:
+            gain_reference = self.ui.line_Gain.text()
+            if gain_reference == '':
+                button_reply = QMessageBox.question(self, 'Warning', "You have not selected a gain reference", QMessageBox.Ignore | QMessageBox.Abort, QMessageBox.Ignore)
+                if button_reply == QMessageBox.Ignore:
+                    pass
+                elif button_reply == QMessageBox.Abort:
+                    raise Exception('Motioncor was not set up.')
+            else:
+                assert os.path.isfile(gain_reference), "Select a Gain reference"
+                self.motioncor_options['Gain'] = gain_reference
+
+        # set motioncor exectutable to motioncor, if not selected
+        if not hasattr(self, 'motioncor_executable'):
+            self.motioncor_executable = 'motioncor'
+        assert shutil.which(self.motioncor_executable), "Select a motioncor executable"
+
+        self.motioncor = Motioncor(self.logger, self.motioncor_options,
+                                   self.outputDir, self.motioncor_executable)
+
+    def set_up_gctf(self):
+        self.get_gctf_options()
+
+        # check gctf executable
+        if not hasattr(self, 'gctf_executable'):
+            self.gctf_executable = 'gctf'
+        assert shutil.which(self.gctf_executable), "Select a gctf executable"
+
+        self.gctf = Gctf(self.logger, self.gctf_options, self.outputDir, self.gctf_executable)
 
     def start_logging(self):
         """
@@ -628,8 +600,8 @@ class MPIApp(QtWidgets.QMainWindow):
             self.get_file_extension()
             self.get_input_dir()
             self.get_output_dir()
-            self.get_motioncor_options()
-            self.get_gctf_options()
+            self.set_up_motioncor()
+            self.set_up_gctf()
             self.ui.btn_Run.setText('Abort')
             self.ui.btn_Run.clicked.disconnect()
             self.ui.btn_Run.clicked.connect(self.abort)
@@ -643,7 +615,7 @@ class MPIApp(QtWidgets.QMainWindow):
     def run(self):
         # reset the stop event in case we did an abort before
         self.stop_event = Event()
-        self.save_configurations()
+        self.save_configurations(autosave=True)
 
         # start everything
         self.start_logging()
@@ -825,7 +797,6 @@ class Gctf:
                     results['delta_Defocus'] = (results['Defocus_U'] - results['Defocus_V']) / 10000
                     if 'Phase_shift' in results:
                         results['Phase_shift'] = results['Phase_shift'] / 180
-                    print(results)
 
                     # Read the epa.log file into a DataFrame
                     # FIXME: first row misses!

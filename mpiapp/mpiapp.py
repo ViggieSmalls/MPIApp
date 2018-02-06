@@ -47,7 +47,6 @@ class MPIApp(QtWidgets.QMainWindow):
         self.files_list = SpecialList(self.ui.listWidget_Files)
         self.ui.btn_removeFiles.clicked.connect(self.files_list.removeItems)
         self.ui.btn_addFiles.clicked.connect(self.add_new_files_to_ListWidget)
-        self.ui.btn_clearAllFiles.clicked.connect(self.get_all_items)
         self.ui.btn_clearAllFiles.clicked.connect(self.clear_all_files_from_ListWidget)
         self.ui.gridLayout_4.addWidget(self.files_list, 0,0,1,3)
 
@@ -115,9 +114,14 @@ class MPIApp(QtWidgets.QMainWindow):
     def clear_all_files_from_ListWidget(self):
         self.files_list.clear()
 
-    def get_all_items(self):
+    def get_all_files_from_ListWidget(self):
         for index in range(self.files_list.count()):
-            print(self.files_list.item(index).data(0))
+            item = self.files_list.item(index).data(0)
+            if item.endswith(self.file_extension):
+                micrograph = Micrograph(item, self.logger)
+                self.queue.put(micrograph)
+            else:
+                self.logger.warning('Wrong input file type: {}'.format(item))
 
     def sync_motioncor_kV(self, text):
         self.ui.motioncor_kV.setText(text)
@@ -657,6 +661,7 @@ class MPIApp(QtWidgets.QMainWindow):
         self.start_process_queue()
         self.start_event_notifier()
         self.start_worker_threads()
+        self.get_all_files_from_ListWidget()
 
         # write data to csv file every 10 seconds
         self.timer = QtCore.QTimer()
@@ -933,7 +938,7 @@ class Motioncor:
         # set options
         options = self.options.copy() # create a copy of the dict, or other threads might override values
         options['Gpu'] = gpu_id
-        options['OutMrc'] = os.path.splitext(micrograph.abspath)[0] + '.mrc'
+        options['OutMrc'] = os.path.splitext(micrograph.abspath)[0] + '.mrc' #FIXME what is the output name in case of mrc input?
         timeout = options.pop('timeout')
         trials = options.pop('trials')
 

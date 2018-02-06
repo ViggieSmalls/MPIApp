@@ -63,8 +63,8 @@
        <attribute name="title">
         <string>Main</string>
        </attribute>
-       <layout class="QGridLayout" name="gridLayout_4">
-        <item row="0" column="0">
+       <layout class="QGridLayout" name="gridLayout_7">
+        <item row="0" column="0" colspan="2">
          <widget class="QGroupBox" name="groupBox_Main_1">
           <property name="title">
            <string>Setup Parameters</string>
@@ -349,6 +349,78 @@
             <widget class="QLabel" name="label_62">
              <property name="text">
               <string>e / A²</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QGroupBox" name="groupBox_Main_3">
+          <property name="title">
+           <string>Additional Files to process</string>
+          </property>
+          <layout class="QGridLayout" name="gridLayout_4">
+           <item row="0" column="0" colspan="3">
+            <widget class="QListWidget" name="listWidget_Files">
+             <property name="minimumSize">
+              <size>
+               <width>300</width>
+               <height>0</height>
+              </size>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QToolButton" name="btn_addFiles">
+             <property name="styleSheet">
+              <string notr="true">font: 75 14pt &quot;Noto Sans Cham&quot;;
+color: rgb(0, 170, 0);</string>
+             </property>
+             <property name="text">
+              <string>+</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QToolButton" name="btn_removeFiles">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+               <horstretch>3</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="minimumSize">
+              <size>
+               <width>29</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="font">
+              <font>
+               <family>Noto Sans Cham</family>
+               <pointsize>14</pointsize>
+               <weight>9</weight>
+               <italic>false</italic>
+               <bold>false</bold>
+              </font>
+             </property>
+             <property name="styleSheet">
+              <string notr="true">color: rgb(170, 0, 0);
+font: 75 14pt &quot;Noto Sans Cham&quot;;</string>
+             </property>
+             <property name="text">
+              <string>-</string>
+             </property>
+             <property name="shortcut">
+              <string>Del</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="2">
+            <widget class="QPushButton" name="btn_clearAllFiles">
+             <property name="text">
+              <string>clear all</string>
              </property>
             </widget>
            </item>
@@ -895,8 +967,8 @@ If the program takes longer than this to run, it will abort</string>
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>265</width>
-                <height>623</height>
+                <width>263</width>
+                <height>589</height>
                </rect>
               </property>
               <layout class="QFormLayout" name="formLayout">
@@ -1275,7 +1347,7 @@ If the program takes longer than this to run, it will abort</string>
      <x>0</x>
      <y>0</y>
      <width>745</width>
-     <height>25</height>
+     <height>20</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">

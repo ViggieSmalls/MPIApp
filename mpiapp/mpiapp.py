@@ -4,20 +4,21 @@ import logging
 import subprocess
 import json
 import datetime
-
+# imports for gui
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QMessageBox
 from gui import Ui_MainWindow
-
+# import for event handling
 import pyinotify
+# imports for data processing and analysis
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-
+# imports for multi-threading
 from queue import Queue
 from threading import Thread, Lock, Event
 from functools import partial
-
+# imports for image cropping
 import mrcfile
 from scipy import misc
 from skimage import exposure
@@ -41,6 +42,14 @@ class MPIApp(QtWidgets.QMainWindow):
         self.ui.actionLoad_configurations.triggered.connect(partial(self.select_configuration_file, directory='.'))
         self.ui.actionSave_configurations.triggered.connect(partial(self.save_configurations, autosave=False))
         self.ui.actionExit.triggered.connect(self.exit)
+
+        # drag and drop list
+        self.files_list = SpecialList(self.ui.listWidget_Files)
+        self.ui.btn_removeFiles.clicked.connect(self.files_list.removeItems)
+        self.ui.btn_addFiles.clicked.connect(self.add_new_files_to_ListWidget)
+        self.ui.btn_clearAllFiles.clicked.connect(self.get_all_items)
+        self.ui.btn_clearAllFiles.clicked.connect(self.clear_all_files_from_ListWidget)
+        self.ui.gridLayout_4.addWidget(self.files_list, 0,0,1,3)
 
         # line values connected to each other
         self.ui.line_kV.textChanged.connect(self.sync_motioncor_kV)
@@ -97,6 +106,18 @@ class MPIApp(QtWidgets.QMainWindow):
 
         self.motioncor_options = {}
         self.gctf_options = {}
+
+    def add_new_files_to_ListWidget(self):
+        files = QtWidgets.QFileDialog.getOpenFileNames(self, "Select Files")[0]
+        for item in files:
+            self.files_list.addItem(item)
+
+    def clear_all_files_from_ListWidget(self):
+        self.files_list.clear()
+
+    def get_all_items(self):
+        for index in range(self.files_list.count()):
+            print(self.files_list.item(index).data(0))
 
     def sync_motioncor_kV(self, text):
         self.ui.motioncor_kV.setText(text)
@@ -692,6 +713,34 @@ class MPIApp(QtWidgets.QMainWindow):
 
     def exit(self):
         sys.exit()
+
+class SpecialList(QtWidgets.QListWidget):
+    """
+    A list class for drag and drop additional files to process
+    """
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.setAcceptDrops(True)
+
+    def dragEnterEvent(self, QDragEnterEvent):
+        if QDragEnterEvent.mimeData().hasUrls:
+            QDragEnterEvent.accept()
+        else:
+            QDragEnterEvent.ignore()
+
+    def dragMoveEvent(self, QDragMoveEvent):
+        if QDragMoveEvent.mimeData().hasUrls:
+            QDragMoveEvent.accept()
+        else:
+            QDragMoveEvent.ignore()
+
+    def dropEvent(self, QDropEvent):
+        for url in QDropEvent.mimeData().urls():
+            self.addItem(url.toLocalFile())
+
+    def removeItems(self):
+        for item in self.selectedItems():
+            self.takeItem(self.row(item))
 
 class EventHandler(pyinotify.ProcessEvent):
     def my_init(self, **kwargs):

@@ -4,6 +4,7 @@ import logging
 import subprocess
 import json
 import datetime
+import re
 # imports for gui
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QMessageBox
@@ -61,7 +62,8 @@ class MPIApp(QtWidgets.QMainWindow):
         self.ui.motioncor_FtBin.textChanged.connect(self.sync_FtBin_changes_gctf_apix)
 
         # load default values
-        config = json.load(open(os.path.join(os.path.dirname(__file__), 'base_config.json')))
+        self.base_config_file = os.path.join(os.path.dirname(__file__), 'base_config.json')
+        config = json.load(open(self.base_config_file))
         self.main_defaults = {
             'InputDir': os.path.abspath('.'),
             'OutputDir': os.path.join(os.path.abspath('.'), 'output'),
@@ -310,10 +312,13 @@ class MPIApp(QtWidgets.QMainWindow):
         creates at maximum one subfoder to an existing directory
         """
         self.outputDir = self.ui.line_OutputDir.text()
+        # if no output directory specified, take default
         if self.outputDir == '':
             self.outputDir = self.main_defaults['OutputDir']
         if not os.path.isdir(self.outputDir):
             try:
+                # work with absolute paths, or symlinks will not work
+                self.outputDir = os.path.abspath(self.outputDir)
                 os.mkdir(self.outputDir)
             except Exception as ex:
                 raise type(ex)(str(ex) + '(Output Directory)')
@@ -397,12 +402,20 @@ class MPIApp(QtWidgets.QMainWindow):
                             self.motioncor_options[key] = list(map(default_item_type, value.split()))
                             assert len(self.motioncor_options[key]) == len(self.motioncor_defaults[key])
                         else:
-                            self.motioncor_options[key] = default_type(self.motioncor_options[key])
+                            self.motioncor_options[key] = default_type(value)
 
                     except Exception as ex:
                         raise type(ex)("Type of {} parameter is incorrect".format(key))
                 else:
-                    self.logger.warning('Unknown motioncor parameter: {}'.format(key))
+                    button_reply = QMessageBox.question(self, 'Warning', 'Unknown motioncor parameter: {param}\n\n'
+                                                                         'If you wish to add it to the default parameters'
+                                                                         'add it to {config}.\n\n'
+                                                                         'Press Ignore if you still wish to use this parameter'.format(param=key, config=self.base_config_file),
+                                                        QMessageBox.Ignore | QMessageBox.Abort, QMessageBox.Abort)
+                    if button_reply == QMessageBox.Ignore:
+                        self.motioncor_options[key] = value
+                    elif button_reply == QMessageBox.Abort:
+                        raise Exception('Stopped initialisation')
 
             # check for essential motioncor parameters
             essential_keys = ['timeout', 'trials', 'kV', 'PixSize', 'FmDose'] #optionally also: 'Gain'
@@ -453,12 +466,22 @@ class MPIApp(QtWidgets.QMainWindow):
                             self.gctf_options[key] = list(map(default_item_type, value.split()))
                             assert len(self.gctf_options[key]) == len(self.gctf_defaults[key])
                         else:
-                            self.gctf_options[key] = default_type(self.gctf_options[key])
+                            self.gctf_options[key] = default_type(value)
 
                     except Exception as ex:
                         raise type(ex)("Type of {} parameter is incorrect".format(key))
                 else:
                     self.logger.warning('Unknown gctf parameter: {}'.format(key))
+
+                    button_reply = QMessageBox.question(self, 'Warning', 'Unknown gctf parameter: {param}\n\n'
+                                                                         'If you wish to add it to the default parameters, '
+                                                                         'add it to {config}.\n\n'
+                                                                         'Press Ignore if you still wish to use this parameter'.format(param=key, config=self.base_config_file),
+                                                        QMessageBox.Ignore | QMessageBox.Abort, QMessageBox.Abort)
+                    if button_reply == QMessageBox.Ignore:
+                        self.gctf_options[key] = value
+                    elif button_reply == QMessageBox.Abort:
+                        raise Exception('Stopped initialisation')
 
             # check for essential gctf parameters
             essential_keys = ['timeout', 'trials', 'cc_cutoff', 'apix', 'kV', 'ac', 'cs']
@@ -508,12 +531,23 @@ class MPIApp(QtWidgets.QMainWindow):
         If there is already a file handler, do nothing
         """
         if not self.logger.handlers:
+
+            # set up logger
             self.logger.setLevel(logging.DEBUG)
+            formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+
+            # logging to file
             fh = logging.FileHandler(os.path.join(self.outputDir, 'mpiapp.log'))
             fh.setLevel(logging.INFO)
-            formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
             fh.setFormatter(formatter)
+
+            # logging to console
+            ch = logging.StreamHandler()
+            ch.setLevel(logging.INFO)
+            ch.setFormatter(formatter)
+
             self.logger.addHandler(fh)
+            self.logger.addHandler(ch)
 
     def start_process_queue(self):
         self.process_table = pd.DataFrame()
@@ -539,7 +573,7 @@ class MPIApp(QtWidgets.QMainWindow):
                 # we just put None inside the Queue
                 break
             else:
-                self.logger.info('Processing Micrograph {}'.format(micrograph.basename))
+                self.logger.debug('Processing Micrograph {}'.format(micrograph.basename))
                 try:
                     self.motioncor(micrograph, gpu_id)
                     self.gctf(micrograph, gpu_id)
@@ -554,7 +588,7 @@ class MPIApp(QtWidgets.QMainWindow):
                     self.logger.error(str(ex))
 
         if self.stop_event.is_set():
-            self.logger.info("Worker thread for GPU {} was shut down".format(str(gpu_id)))
+            self.logger.debug("Worker thread for GPU {} was shut down".format(str(gpu_id)))
 
     def start_worker_threads(self):
         """
@@ -564,7 +598,7 @@ class MPIApp(QtWidgets.QMainWindow):
         """
         self.gpu_threads = [Thread(target=self.worker, args=(i,)) for i in self.GPUs]
         for thread in self.gpu_threads:
-            self.logger.info('Starting thread for GPU with ID: {}'.format(thread._args[0]))
+            self.logger.debug('Starting thread for GPU with ID: {}'.format(thread._args[0]))
             thread.daemon = True
             thread.start()
 
@@ -755,15 +789,15 @@ class EventHandler(pyinotify.ProcessEvent):
         self.logger = kwargs['logger']
         self.queue = kwargs['queue']
         self.file_extension = kwargs['file_extension']
-        self.logger.info('EventHandler was initialized')
-        self.logger.info('Watching for all events with the file extension {}'.format(self.file_extension))
+        self.logger.debug('EventHandler was initialized')
+        self.logger.debug('Watching for all events with the file extension {}'.format(self.file_extension))
 
     def process_IN_CLOSE_WRITE(self, event):
         """
         all events that finished writing and have the specified extension are added to the queue
         """
         if os.path.splitext(event.pathname)[1] == self.file_extension:
-            self.logger.info('New micrograph: {}. Inserting in queue.'.format(event.name))
+            self.logger.debug('New micrograph: {}. Inserting in queue.'.format(event.name))
             mic = Micrograph(event.pathname, self.logger)
             self.queue.put(mic)
 
@@ -796,7 +830,8 @@ class Gctf:
 
         # create a symbolic link to the input file inside the gctf directory
         assert 'gctf_input' in micrograph.files, "No gctf input file found for micrograph {}".format(micrograph.basename)
-        gctf_input = os.path.join(self.results_dir, os.path.basename(micrograph.files['gctf_input']))
+        # gctf_input = os.path.join(self.results_dir, os.path.basename(micrograph.files['gctf_input']))
+        gctf_input = os.path.join(self.results_dir, micrograph.basename + '.mrc')
         os.symlink(micrograph.files['gctf_input'], gctf_input)
 
         # set up additional options
@@ -830,19 +865,32 @@ class Gctf:
                     self.logger.warning('Gctf for micrograph {} did not finish successfully. (trial {})'.format(micrograph.basename,i+1))
 
                 else:
-                    self.logger.info('Gctf for micrograph {} was executed successfully. (trial {})'.format(micrograph.basename,i+1))
-
-                    micrograph.files['gctf_ctf_fit'] = os.path.splitext(gctf_input)[0] + '.ctf'
                     micrograph.files['gctf_log'] = os.path.splitext(gctf_input)[0] + '_gctf.log'
-                    micrograph.files['gctf_epa_log'] = os.path.splitext(gctf_input)[0] + '_EPA.log'
 
                     log = out.decode('utf-8')
                     with open(micrograph.files['gctf_log'], "w") as gctf_log:
                         gctf_log.write(log)
 
+                        if 'Segmentation fault' in log:
+                            self.logger.error('Gctf for micrograph {} did not finish successfully. (Segmentation fault, trial {})'.format(micrograph.basename,i+1))
+                            continue    # retry
+
+                        if 'Final Values' not in log:
+                            self.logger.error('Gctf for micrograph {} did not finish successfully. (No final values found, trial {})'.format(micrograph.basename,i+1))
+                            continue    # retry
+
+                    self.logger.debug('Gctf for micrograph {} was executed successfully. (trial {})'.format(micrograph.basename,i+1))
+
+                    micrograph.files['gctf_ctf_fit'] = re.sub(r'.mrc$', '.ctf', gctf_input)
+                    micrograph.files['gctf_epa_log'] = re.sub(r'.mrc$', '_EPA.log', gctf_input)
+                    # micrograph.files['gctf_ctf_fit'] = os.path.splitext(gctf_input)[0] + '.ctf'
+                    # micrograph.files['gctf_epa_log'] = os.path.splitext(gctf_input)[0] + '_EPA.log'
+
+
                     # find out the results of the last iteration
                     values = []
                     keys = []
+                    self.logger.debug('Reading the final values of the CTF fit from the gctf log file')
                     for line in reversed(log.split('\n')):
                         # if final values not found yet:
                         if not bool(values):
@@ -870,6 +918,7 @@ class Gctf:
 
                     # Read the epa.log file into a DataFrame
                     # FIXME: first row misses!
+                    self.logger.debug('Reading the EPA log file')
                     epa_df = pd.read_csv(micrograph.files['gctf_epa_log'], sep='\s+',
                                          names=['Resolution', '|CTFsim|', 'EPA( Ln|F| )', 'EPA(Ln|F| - Bg)',
                                                 'CCC'],
@@ -880,6 +929,9 @@ class Gctf:
                     res = epa_df.iloc[index]['Resolution']
                     results['Resolution'] = res
                     del results['CCC']  # we don't need this column anymore
+
+                    # log the results
+                    self.logger.info('Results for micrograph {name}: {results}'.format(name=micrograph.basename, results=results))
 
                     # Read contents of the gctf star file
                     # FIXME: columns have the form '_rlnMicrographName #1', '_rlnCtfImage #2' .. KEEP IT!
@@ -914,7 +966,7 @@ class Gctf:
 
             except subprocess.TimeoutExpired:
                 self.logger.warning('Timeout of {} s expired for gctf on micrograph {}. (trial {})'.format(timeout,micrograph.basename,i+1))
-                continue
+                continue #retry
 
         self.logger.error('Could not process gctf for micrograph {}'.format(micrograph.basename))
         return
@@ -933,12 +985,23 @@ class Motioncor:
         self.executable = executable
 
     def __call__(self, micrograph, gpu_id):
+        """
+        output DW and nonDW file is inside the results directory
+        :param micrograph:
+        :param gpu_id:
+        :return:
+        """
         assert 'motioncor_input' in micrograph.files, "No motioncor input file found for micrograph {}".format(micrograph.basename)
+
+        basename = os.path.basename(micrograph.abspath)
+
 
         # set options
         options = self.options.copy() # create a copy of the dict, or other threads might override values
         options['Gpu'] = gpu_id
-        options['OutMrc'] = os.path.splitext(micrograph.abspath)[0] + '.mrc' #FIXME what is the output name in case of mrc input?
+        # options['OutMrc'] = os.path.splitext(micrograph.abspath)[0] + '.mrc' #FIXME what is the output name in case of mrc input?
+        output_mrc = os.path.join(self.results_dir, os.path.splitext(basename)[0] + '.mrc')
+        options['OutMrc'] = output_mrc
         timeout = options.pop('timeout')
         trials = options.pop('trials')
 
@@ -968,16 +1031,19 @@ class Motioncor:
                     continue
 
                 else:
-                    self.logger.info('Motioncor for micrograph {} was executed successfully. (trial {})'.format(micrograph.basename,i+1))
+                    self.logger.debug('Motioncor for micrograph {} was executed successfully. (trial {})'.format(micrograph.basename,i+1))
 
-                    micrograph.files['motioncor_aligned_DW'] = os.path.splitext(micrograph.abspath)[0] + '_DW.mrc'
-                    micrograph.files['motioncor_aligned_no_DW'] = os.path.splitext(micrograph.abspath)[0] + '.mrc'
-                    micrograph.files['motioncor_log'] = os.path.splitext(micrograph.abspath)[0] + '_DriftCorr.log'
+                    micrograph.files['motioncor_aligned_no_DW'] = output_mrc
+                    micrograph.files['motioncor_aligned_DW'] = re.sub(r'.mrc$', '_DW.mrc', output_mrc)
+                    micrograph.files['motioncor_log'] = re.sub(r'.mrc$', '_DriftCorr.log', output_mrc)
+                    # micrograph.files['motioncor_aligned_DW'] = os.path.splitext(micrograph.abspath)[0] + '_DW.mrc'
+                    # micrograph.files['motioncor_log'] = os.path.splitext(micrograph.abspath)[0] + '_DriftCorr.log'
 
 
                     with open(micrograph.files['motioncor_log'], "w") as log:
                         log.write(out.decode('utf-8'))
 
+                    # crop the image and save it in the static directory
                     crop_image(micrograph.files['motioncor_aligned_DW'], self.static_dir, equalize_hist=True)
 
                     # copy the log file to the static directory
@@ -990,9 +1056,10 @@ class Motioncor:
                     )
 
                     # move the other files to the results directory
-                    shutil.move(micrograph.files['motioncor_aligned_DW'], self.results_dir)
-                    shutil.move(micrograph.files['motioncor_aligned_no_DW'], self.results_dir)
-                    micrograph.files['gctf_input'] = os.path.join(self.results_dir, os.path.basename(micrograph.files['motioncor_aligned_no_DW']))
+                    # shutil.move(micrograph.files['motioncor_aligned_DW'], self.results_dir)
+                    # shutil.move(micrograph.files['motioncor_aligned_no_DW'], self.results_dir)
+                    # micrograph.files['gctf_input'] = os.path.join(self.results_dir, os.path.basename(micrograph.files['motioncor_aligned_no_DW']))
+                    micrograph.files['gctf_input'] = micrograph.files['motioncor_aligned_no_DW']
                     return
 
             except subprocess.TimeoutExpired:

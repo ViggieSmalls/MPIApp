@@ -623,7 +623,7 @@ class MPIApp(QtWidgets.QMainWindow):
 
         if not os.path.isfile(project_html):
             template = os.path.join(os.path.dirname(__file__), '..', 'templates', 'project.html')
-            shutil.copy(template, self.outputDir)
+            shutil.copyfile(template, project_html)
 
         self.process_table_lock.acquire()
 

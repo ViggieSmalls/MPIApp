@@ -5,6 +5,7 @@ import subprocess
 import json
 import datetime
 import re
+import signal
 # imports for gui
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QMessageBox
@@ -126,12 +127,15 @@ class MPIApp(QtWidgets.QMainWindow):
                 self.logger.warning('Wrong input file type: {}'.format(item))
 
     def sync_motioncor_kV(self, text):
+        """This function changes the kV in the Motioncor tab when kV in the Main Tab is edited"""
         self.ui.motioncor_kV.setText(text)
 
     def sync_gctf_kV(self, text):
+        """This function changes the kV in the Gctf tab when kV in the Main Tab is edited"""
         self.ui.gctf_kV.setText(text)
 
     def sync_motioncor_PixSize(self, text):
+        """This function changes the motioncor pixel size when the pixel size in the main tab is edited"""
         self.ui.motioncor_PixSize.setText(text)
 
     def sync_gctf_apix(self, text):
@@ -187,6 +191,11 @@ class MPIApp(QtWidgets.QMainWindow):
             self.load_configurations(filename)
 
     def load_configurations(self, filename):
+        """
+        loads configuration options from a json file
+        :param filename:
+        :return:
+        """
         config = json.load(open(filename))
         if "Main" in config:
             for param, value in config["Main"].items():
@@ -198,6 +207,21 @@ class MPIApp(QtWidgets.QMainWindow):
                         line.setText(str(value))
                     elif type(value) == list:
                         line.setText(' '.join(map(str, value)))
+
+            # set radio button
+            if "file_extension" in config["Main"]:
+                ext = config["Main"]["file_extension"]
+                radio_btn = getattr(self.ui, 'radio_' + ext)
+                radio_btn.setChecked(True)
+
+            # set GPUs
+            if "GPUs" in config["Main"]:
+                GPUs = config["Main"]["GPUs"]
+                # if there are GPUs, select the check boxes
+                if bool(GPUs):
+                    for id in GPUs:
+                        check_box = getattr(self.ui, 'GPU_' + str(id))
+                        check_box.setChecked(True)
 
         if "Motioncor" in config:
             m_string = ""
@@ -237,22 +261,30 @@ class MPIApp(QtWidgets.QMainWindow):
                     g_string += "--{param} {value} ".format(param=param, value=value_as_string)
             self.ui.plainTextEdit_gctf.setPlainText(g_string)
 
-    # FIXME this can only save configurations if we press run.
-    # get options as soon as typed in?
     def save_configurations(self, autosave):
+
+        # populate self.main_defaults with the inserted options
         self.get_motioncor_options()
         self.get_gctf_options()
+        self.get_GPUs()
+        self.get_file_extension()
+        self.get_input_dir()
+        self.get_output_dir()
+        # create an empty config dict that will be written to file
         config = {"Main":{}, "Motioncor": {}, "Gctf": {}}
+        # fill it up
         config["Main"] = self.main_defaults
         config["Motioncor"] = self.motioncor_options
         config["Gctf"] = self.gctf_options
 
+        # this is called when you press 'Run'
         if autosave==True:
             date_string = datetime.datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
             config_filename = os.path.join(self.config_dir, date_string + '.json')
             with open(config_filename, 'w') as config_file:
                 json.dump(config, config_file, indent=4, sort_keys=True, separators=(',', ': '))
 
+        # this is called when you press 'File->Save Configurations'
         elif autosave==False:
             filename = QtWidgets.QFileDialog.getSaveFileName(self, 'Save File', os.path.join('.', 'my_config.json'), "Config (*.json)")[0]
             if filename != '':
@@ -266,62 +298,52 @@ class MPIApp(QtWidgets.QMainWindow):
         self.gctf_executable = str(QtWidgets.QFileDialog.getOpenFileName(self, "Select Executable")[0])
 
     def get_GPUs(self):
-        self.GPUs = []
+        self.main_defaults['GPUs'] = []
         if self.ui.GPU_0.isChecked():
-            self.GPUs.append(0)
+            self.main_defaults['GPUs'].append(0)
         if self.ui.GPU_1.isChecked():
-            self.GPUs.append(1)
+            self.main_defaults['GPUs'].append(1)
         if self.ui.GPU_2.isChecked():
-            self.GPUs.append(2)
+            self.main_defaults['GPUs'].append(2)
         if self.ui.GPU_3.isChecked():
-            self.GPUs.append(3)
+            self.main_defaults['GPUs'].append(3)
         if self.ui.GPU_4.isChecked():
-            self.GPUs.append(4)
+            self.main_defaults['GPUs'].append(4)
         if self.ui.GPU_5.isChecked():
-            self.GPUs.append(5)
+            self.main_defaults['GPUs'].append(5)
         if self.ui.GPU_6.isChecked():
-            self.GPUs.append(6)
+            self.main_defaults['GPUs'].append(6)
         if self.ui.GPU_7.isChecked():
-            self.GPUs.append(7)
+            self.main_defaults['GPUs'].append(7)
         if self.ui.GPU_8.isChecked():
-            self.GPUs.append(8)
+            self.main_defaults['GPUs'].append(8)
         if self.ui.GPU_9.isChecked():
-            self.GPUs.append(9)
-        if len(self.GPUs) == 0:
-            raise ValueError('You must select at least one GPU')
+            self.main_defaults['GPUs'].append(9)
 
     def get_file_extension(self):
         if self.ui.radio_mrc.isChecked():
             self.file_extension = '.mrc'
+            self.main_defaults['file_extension'] = 'mrc'
+            self.motioncor_options['InMrc'] = '{motioncor_input}'
+        elif self.ui.radio_mrcs.isChecked():
+            self.file_extension = '.mrcs'
+            self.main_defaults['file_extension'] = 'mrcs'
             self.motioncor_options['InMrc'] = '{motioncor_input}'
         elif self.ui.radio_tif.isChecked():
             self.file_extension = '.tif'
+            self.main_defaults['file_extension'] = 'tif'
             self.motioncor_options['InTiff'] = '{motioncor_input}'
-        if not hasattr(self, 'file_extension'):
-            raise ValueError('No file extension selected')
 
     def get_input_dir(self):
         self.inputDir = self.ui.line_InputDir.text()
         if self.inputDir == '':
-            self.inputDir = self.main_defaults['InputDir']
-        if not os.path.isdir(self.inputDir):
-            raise ValueError('The input directory does not exist')
+            self.inputDir = os.path.abspath('.')
 
     def get_output_dir(self):
-        """
-        creates at maximum one subfoder to an existing directory
-        """
         self.outputDir = self.ui.line_OutputDir.text()
         # if no output directory specified, take default
         if self.outputDir == '':
-            self.outputDir = self.main_defaults['OutputDir']
-        if not os.path.isdir(self.outputDir):
-            try:
-                # work with absolute paths, or symlinks will not work
-                self.outputDir = os.path.abspath(self.outputDir)
-                os.mkdir(self.outputDir)
-            except Exception as ex:
-                raise type(ex)(str(ex) + '(Output Directory)')
+            self.outputDir = os.path.join(os.path.abspath('.'), 'output')
 
     def set_placeholder_text(self):
         # set placeholder text in the Main tab
@@ -364,6 +386,7 @@ class MPIApp(QtWidgets.QMainWindow):
                 pass # there is no such line attribute
 
     def get_motioncor_options(self):
+        """Popupates the dictionary self.motioncor_options with the parameters set in the Motioncor Tab"""
 
         try:
             # get all line entries
@@ -492,6 +515,22 @@ class MPIApp(QtWidgets.QMainWindow):
         except Exception as ex:
             raise ex
 
+    def check_input(self):
+        if len(self.main_defaults['GPUs']) == 0:
+            raise ValueError('You must select at least one GPU')
+        if not hasattr(self, 'file_extension'):
+            raise ValueError('No file extension selected')
+        if not os.path.isdir(self.inputDir):
+            raise ValueError('The input directory does not exist')
+        # creates at maximum one subfolder to an existing directory as output directory
+        if not os.path.isdir(self.outputDir):
+            try:
+                # work with absolute paths, or symlinks will not work
+                self.outputDir = os.path.abspath(self.outputDir)
+                os.mkdir(self.outputDir)
+            except Exception as ex:
+                raise type(ex)(str(ex) + '(Output Directory)')
+
     def set_up_motioncor(self):
         self.get_motioncor_options()
 
@@ -538,7 +577,8 @@ class MPIApp(QtWidgets.QMainWindow):
 
             # logging to file
             fh = logging.FileHandler(os.path.join(self.outputDir, 'mpiapp.log'))
-            fh.setLevel(logging.INFO)
+            # FIXME change to INFO
+            fh.setLevel(logging.DEBUG)
             fh.setFormatter(formatter)
 
             # logging to console
@@ -596,7 +636,7 @@ class MPIApp(QtWidgets.QMainWindow):
         micrograph sequentially
         :return:
         """
-        self.gpu_threads = [Thread(target=self.worker, args=(i,)) for i in self.GPUs]
+        self.gpu_threads = [Thread(target=self.worker, args=(i,)) for i in self.main_defaults['GPUs']]
         for thread in self.gpu_threads:
             self.logger.debug('Starting thread for GPU with ID: {}'.format(thread._args[0]))
             thread.daemon = True
@@ -612,7 +652,7 @@ class MPIApp(QtWidgets.QMainWindow):
 
     def process_table_dump(self):
         """
-        Write the data in the process table to a csv file
+        Write the data from the DataFrame object to a csv file
         and to a star file to use as input for relion.
         Copy a project.html file inside the output directory
         """
@@ -675,6 +715,7 @@ class MPIApp(QtWidgets.QMainWindow):
             self.get_output_dir()
             self.set_up_motioncor()
             self.set_up_gctf()
+            self.check_input()
             self.ui.btn_Run.setText('Abort')
             self.ui.btn_Run.clicked.disconnect()
             self.ui.btn_Run.clicked.connect(self.abort)
@@ -714,7 +755,13 @@ class MPIApp(QtWidgets.QMainWindow):
         # set stop events
         self.notifier.stop()
         self.stop_event.set()
+
+        # clear all remaining items in the queue
         self.queue.queue.clear()
+
+        # kill running processes
+        self.motioncor.abort()
+        self.gctf.abort()
 
         # wait for all threads to finish before continuing
         for thread in self.gpu_threads:
@@ -832,7 +879,12 @@ class Gctf:
         assert 'gctf_input' in micrograph.files, "No gctf input file found for micrograph {}".format(micrograph.basename)
         # gctf_input = os.path.join(self.results_dir, os.path.basename(micrograph.files['gctf_input']))
         gctf_input = os.path.join(self.results_dir, micrograph.basename + '.mrc')
-        os.symlink(micrograph.files['gctf_input'], gctf_input)
+
+        self.logger.debug('Copying {file} to {dir}'.format(file=micrograph.files['gctf_input'], dir=self.results_dir))
+        try:
+            os.symlink(micrograph.files['gctf_input'], gctf_input)
+        except:
+            shutil.copy(micrograph.files['gctf_input'], gctf_input)
 
         # set up additional options
         options = self.options.copy()
@@ -913,6 +965,7 @@ class Gctf:
                     results.update(dict(zip(keys, values)))
                     results['Defocus'] = (results['Defocus_U'] + results['Defocus_V']) / 2 / 10000
                     results['delta_Defocus'] = (results['Defocus_U'] - results['Defocus_V']) / 10000
+
                     if 'Phase_shift' in results:
                         results['Phase_shift'] = results['Phase_shift'] / 180
 
@@ -931,7 +984,11 @@ class Gctf:
                     del results['CCC']  # we don't need this column anymore
 
                     # log the results
-                    self.logger.info('Results for micrograph {name}: {results}'.format(name=micrograph.basename, results=results))
+                    self.logger.info('Results for micrograph {name}: '
+                                     'Defocus: {defocus} \u03BCm, Resolution: {resolution} \u212B, Phase shift: {phase_shift} \u03c0'.format(name=micrograph.basename,
+                                                                                                          defocus=results['Defocus'],
+                                                                                                          resolution=results['Resolution'],
+                                                                                                          phase_shift=0 if 'Phase_shift' not in results else results['Phase_shift']))
 
                     # Read contents of the gctf star file
                     # FIXME: columns have the form '_rlnMicrographName #1', '_rlnCtfImage #2' .. KEEP IT!
@@ -971,6 +1028,12 @@ class Gctf:
         self.logger.error('Could not process gctf for micrograph {}'.format(micrograph.basename))
         return
 
+    def abort(self):
+        for line in os.popen("ps ax | grep motioncor | grep -v grep"):
+            fields = line.split()
+            pid = fields[0]
+            os.kill(int(pid), signal.SIGKILL)
+
 class Motioncor:
     def __init__(self, logger, options, output_directory, executable):
         self.logger = logger
@@ -994,7 +1057,6 @@ class Motioncor:
         assert 'motioncor_input' in micrograph.files, "No motioncor input file found for micrograph {}".format(micrograph.basename)
 
         basename = os.path.basename(micrograph.abspath)
-
 
         # set options
         options = self.options.copy() # create a copy of the dict, or other threads might override values
@@ -1036,18 +1098,20 @@ class Motioncor:
                     micrograph.files['motioncor_aligned_no_DW'] = output_mrc
                     micrograph.files['motioncor_aligned_DW'] = re.sub(r'.mrc$', '_DW.mrc', output_mrc)
                     micrograph.files['motioncor_log'] = re.sub(r'.mrc$', '_DriftCorr.log', output_mrc)
-                    # micrograph.files['motioncor_aligned_DW'] = os.path.splitext(micrograph.abspath)[0] + '_DW.mrc'
-                    # micrograph.files['motioncor_log'] = os.path.splitext(micrograph.abspath)[0] + '_DriftCorr.log'
 
 
                     with open(micrograph.files['motioncor_log'], "w") as log:
                         log.write(out.decode('utf-8'))
 
                     # crop the image and save it in the static directory
+                    self.logger.debug('Creating png file from {}'.format(micrograph.files['motioncor_aligned_DW']))
                     crop_image(micrograph.files['motioncor_aligned_DW'], self.static_dir, equalize_hist=True)
 
                     # copy the log file to the static directory
+                    self.logger.debug('Copy log file {} to static directory'.format(micrograph.files['motioncor_log']))
                     shutil.copy(micrograph.files['motioncor_log'], self.static_dir)
+
+                    # update the micrograph results with the new file paths
                     micrograph.add_data(
                         {
                             'motioncor_aligned_DW': 'static/motioncor/{}_DW.png'.format(micrograph.basename),
@@ -1055,10 +1119,6 @@ class Motioncor:
                         }
                     )
 
-                    # move the other files to the results directory
-                    # shutil.move(micrograph.files['motioncor_aligned_DW'], self.results_dir)
-                    # shutil.move(micrograph.files['motioncor_aligned_no_DW'], self.results_dir)
-                    # micrograph.files['gctf_input'] = os.path.join(self.results_dir, os.path.basename(micrograph.files['motioncor_aligned_no_DW']))
                     micrograph.files['gctf_input'] = micrograph.files['motioncor_aligned_no_DW']
                     return
 
@@ -1067,6 +1127,12 @@ class Motioncor:
                 continue
 
         self.logger.error("No motioncor results could be generated for micrograph {}".format(micrograph.basename))
+
+    def abort(self):
+        for line in os.popen("ps ax | grep motioncor | grep -v grep"):
+            fields = line.split()
+            pid = fields[0]
+            os.kill(int(pid), signal.SIGKILL)
 
 class Micrograph:
     counter = 0

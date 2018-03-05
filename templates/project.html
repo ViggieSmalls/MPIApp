@@ -104,7 +104,7 @@
                 },
                 y: {
                     tick: {
-                        format: function (d) {return d3.format(",.1f")(d) + " \u03BCm";}
+                        format: function (d) {return d3.format(",.2f")(d) + " \u03BCm";}
                     },
                     label: {
                         text: 'Defocus',
@@ -113,7 +113,7 @@
                 },
                 y2: {
                     tick: {
-                        format: function (d) {return d3.format(",.1f")(d) + " \u03c0";}
+                        format: function (d) {return d3.format(",.2f")(d) + " \u03c0";}
                     },
                     show: true,
                     label: {
@@ -176,7 +176,7 @@
                     {
                         "targets": 3,
                         "render": function ( data) {
-                                      return parseFloat(data).toFixed(1);
+                                      return parseFloat(data).toFixed(2);
                                 },
                         "title": "Phase_shift"
                     },

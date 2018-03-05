@@ -5,7 +5,9 @@
     "apix": 0.53,
     "dose_per_frame": 1.000,
     "cs": 2.62,
-    "ac": 0.1
+    "ac": 0.1,
+    "file_extension": "mrcs",
+    "GPUs": [0,1]
   },
   "Motioncor": {
     "trials": 3,
@@ -13,7 +15,7 @@
     "FtBin": 2,
     "Patch": [5,5],
     "Bft": 300,
-    "FmDose": 1.0,
+    "FmDose": 1.6,
     "Throw": 2
   },
   "Gctf": {

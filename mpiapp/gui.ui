@@ -110,6 +110,13 @@
                </property>
               </widget>
              </item>
+             <item>
+              <widget class="QRadioButton" name="radio_mrcs">
+               <property name="text">
+                <string>mrcs</string>
+               </property>
+              </widget>
+             </item>
             </layout>
            </item>
            <item row="4" column="1">
@@ -1391,6 +1398,11 @@ If the program takes longer than this to run, it will abort</string>
   <action name="actionRecent_configurations">
    <property name="text">
     <string>Recent configurations</string>
+   </property>
+  </action>
+  <action name="actionTest">
+   <property name="text">
+    <string>test</string>
    </property>
   </action>
  </widget>

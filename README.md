@@ -12,3 +12,16 @@ pip install pyinotify mrcfile
 conda install pandas matplotlib scipy scikit-image
 ```
 Launch the application with `python mpiapp.py`
+
+## Making changes
+
+You can modify the appearing of the gui with the QtDesigner. Launch with
+
+    designer gui.ui
+
+Save changes to the python file
+
+    pyuic5 -x gui.ui -o gui.py
+
+The main code functionality is inside `mpiapp.py`.
+

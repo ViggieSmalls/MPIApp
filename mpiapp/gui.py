@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'gui.ui'
 #
-# Created by: PyQt5 UI code generator 5.6
+# Created by: PyQt5 UI code generator 5.10
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -39,7 +39,6 @@ class Ui_MainWindow(object):
         self.Main.setLayoutDirection(QtCore.Qt.LeftToRight)
         self.Main.setObjectName("Main")
         self.gridLayout_7 = QtWidgets.QGridLayout(self.Main)
-        self.gridLayout_7.setContentsMargins(0, 0, 0, 0)
         self.gridLayout_7.setObjectName("gridLayout_7")
         self.groupBox_Main_1 = QtWidgets.QGroupBox(self.Main)
         self.groupBox_Main_1.setObjectName("groupBox_Main_1")
@@ -63,6 +62,9 @@ class Ui_MainWindow(object):
         self.radio_mrc = QtWidgets.QRadioButton(self.groupBox_Main_1)
         self.radio_mrc.setObjectName("radio_mrc")
         self.horizontalLayout.addWidget(self.radio_mrc)
+        self.radio_mrcs = QtWidgets.QRadioButton(self.groupBox_Main_1)
+        self.radio_mrcs.setObjectName("radio_mrcs")
+        self.horizontalLayout.addWidget(self.radio_mrcs)
         self.gridLayout.addLayout(self.horizontalLayout, 5, 1, 1, 1)
         self.line_Gain = QtWidgets.QLineEdit(self.groupBox_Main_1)
         self.line_Gain.setObjectName("line_Gain")
@@ -213,7 +215,6 @@ class Ui_MainWindow(object):
         self.Motioncor = QtWidgets.QWidget()
         self.Motioncor.setObjectName("Motioncor")
         self.gridLayout_5 = QtWidgets.QGridLayout(self.Motioncor)
-        self.gridLayout_5.setContentsMargins(0, 0, 0, 0)
         self.gridLayout_5.setObjectName("gridLayout_5")
         self.groupBox_Motioncor_1 = QtWidgets.QGroupBox(self.Motioncor)
         self.groupBox_Motioncor_1.setObjectName("groupBox_Motioncor_1")
@@ -360,7 +361,6 @@ class Ui_MainWindow(object):
         self.Gctf = QtWidgets.QWidget()
         self.Gctf.setObjectName("Gctf")
         self.gridLayout_6 = QtWidgets.QGridLayout(self.Gctf)
-        self.gridLayout_6.setContentsMargins(0, 0, 0, 0)
         self.gridLayout_6.setObjectName("gridLayout_6")
         self.groupBox_Gctf_1 = QtWidgets.QGroupBox(self.Gctf)
         self.groupBox_Gctf_1.setMaximumSize(QtCore.QSize(16777215, 16777215))
@@ -441,7 +441,6 @@ class Ui_MainWindow(object):
         self.scrollAreaWidgetContents.setGeometry(QtCore.QRect(0, 0, 263, 589))
         self.scrollAreaWidgetContents.setObjectName("scrollAreaWidgetContents")
         self.formLayout = QtWidgets.QFormLayout(self.scrollAreaWidgetContents)
-        self.formLayout.setContentsMargins(0, 0, 0, 0)
         self.formLayout.setObjectName("formLayout")
         self.label_30 = QtWidgets.QLabel(self.scrollAreaWidgetContents)
         font = QtGui.QFont()
@@ -628,6 +627,8 @@ class Ui_MainWindow(object):
         self.actionGctf_manual.setObjectName("actionGctf_manual")
         self.actionRecent_configurations = QtWidgets.QAction(MainWindow)
         self.actionRecent_configurations.setObjectName("actionRecent_configurations")
+        self.actionTest = QtWidgets.QAction(MainWindow)
+        self.actionTest.setObjectName("actionTest")
         self.menuFile.addAction(self.actionSave_configurations)
         self.menuFile.addAction(self.actionLoad_configurations)
         self.menuFile.addAction(self.actionRecent_configurations)
@@ -650,6 +651,7 @@ class Ui_MainWindow(object):
         self.label_5.setText(_translate("MainWindow", "GPUs"))
         self.radio_tif.setText(_translate("MainWindow", "tif"))
         self.radio_mrc.setText(_translate("MainWindow", "mrc"))
+        self.radio_mrcs.setText(_translate("MainWindow", "mrcs"))
         self.btnOutputDir.setText(_translate("MainWindow", "Select Directory"))
         self.btnInputDir.setText(_translate("MainWindow", "Select Directory"))
         self.GPU_0.setText(_translate("MainWindow", "0"))
@@ -816,6 +818,7 @@ class Ui_MainWindow(object):
         self.actionMotioncor_manual.setText(_translate("MainWindow", "Motioncor manual"))
         self.actionGctf_manual.setText(_translate("MainWindow", "Gctf manual"))
         self.actionRecent_configurations.setText(_translate("MainWindow", "Recent configurations"))
+        self.actionTest.setText(_translate("MainWindow", "test"))
 
 
 if __name__ == "__main__":
